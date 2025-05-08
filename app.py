@@ -7,7 +7,7 @@ import json, os # New import
 app = Flask(__name__)
 
 # --- configuration -------------------------------------------------
-ROOT_DIR = Path(r"/home/hencle/MinimalEcommercePrototype").resolve()  # <-- CHANGE ME
+ROOT_DIR = Path(__file__).resolve().parent.parent
 # ------------------------------------------------------------------
 PRESET_DIR = Path.home() / ".filepicker_presets" # New
 PRESET_DIR.mkdir(exist_ok=True) # New
