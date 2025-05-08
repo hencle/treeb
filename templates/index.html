@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>File picker</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/themes/default/style.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/jstree.min.js"></script>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 1.5rem; }
+  #result { width: 100%; max-width: 100%; box-sizing: border-box; }
+  /* New styles */
+  #toolbar { margin-bottom: 1rem; }
+  #toolbar input[type="text"] { width: 28rem; }
+</style>
+</head>
+<body>
+  <div id="toolbar">
+    <input id="rootPath" type="text" placeholder="Enter path and hit “Load Path”">
+    <button id="btnLoadPath">Load Path</button> |
+    
+    <select id="presetList"></select>
+    <button id="btnLoadPreset">Load</button>
+    <button id="btnDeletePreset">🗑️</button>
+    <button id="btnSavePreset">💾 Save as…</button>
+  </div>
+
+  <h2>Pick files</h2> <div id="tree"></div>
+
+  <button id="btnGenerate">Generate TXT</button>
+  <hr>
+
+  <textarea id="result" rows="25" placeholder="Generated text will appear here…"></textarea><br>
+  <button id="btnCopy">Copy to clipboard</button>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
