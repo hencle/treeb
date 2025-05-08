@@ -2,60 +2,108 @@
 from flask import Flask, render_template, request, jsonify
 from pathlib import Path
 import itertools
-import json, os # New import
+import json
+import os # Retained for os.path.commonpath if still used, though Pathlib is preferred
 
 app = Flask(__name__)
 
 # --- configuration -------------------------------------------------
-ROOT_DIR = Path(__file__).resolve().parent.parent
+# Initial root directory, can be changed by the user via the UI
+INITIAL_ROOT_DIR = Path(r"/home/hencle/MinimalEcommercePrototype").resolve()  # <-- CHANGE ME if needed
+
+# --- Preset Configuration ---
+APP_ROOT = Path(__file__).resolve().parent
+PRESET_BASE_DIR = APP_ROOT / "presets"
+DEFAULT_PRESETS_DIR = PRESET_BASE_DIR / "default"
+USER_PRESETS_DIR = PRESET_BASE_DIR / "user"
+
+# Create preset directories if they don't exist
+PRESET_BASE_DIR.mkdir(exist_ok=True)
+DEFAULT_PRESETS_DIR.mkdir(exist_ok=True)
+USER_PRESETS_DIR.mkdir(exist_ok=True)
 # ------------------------------------------------------------------
-PRESET_DIR = Path.home() / ".filepicker_presets" # New
-PRESET_DIR.mkdir(exist_ok=True) # New
 
 # ------------------------------------------------------------------ PRESET HELPERS
-def preset_path(name: str) -> Path: # New
-    safe = "".join(c for c in name if c.isalnum() or c in "-_").strip()
-    return PRESET_DIR / f"{safe}.json"
+def get_preset_path(name: str, preset_type: str) -> Path | None:
+    """
+    Gets the path for a preset. Name can be 'type/actual_name' or just 'actual_name'.
+    If 'actual_name' is provided, preset_type must be specified.
+    """
+    safe_name = "".join(c for c in name if c.isalnum() or c in "-_").strip()
+    if not safe_name:
+        return None
+
+    if preset_type == "default":
+        return DEFAULT_PRESETS_DIR / f"{safe_name}.json"
+    elif preset_type == "user":
+        return USER_PRESETS_DIR / f"{safe_name}.json"
+    else: # try to parse from name if type is not given
+        if '/' in name:
+            ptype, pname = name.split('/', 1)
+            safe_pname = "".join(c for c in pname if c.isalnum() or c in "-_").strip()
+            if not safe_pname: return None
+            if ptype == "default": return DEFAULT_PRESETS_DIR / f"{safe_pname}.json"
+            if ptype == "user": return USER_PRESETS_DIR / f"{safe_pname}.json"
+    return None
+
 
 # -------- directory → jsTree JSON ---------------------------------
 def dir_to_js(node: Path):
     """Return a dict jsTree understands."""
-    if node.is_dir():
+    try:
+        if not node.exists(): # Check if path exists before iterating
+            return {
+                "id": str(node), "text": f"{node.name} (not found or no access)",
+                "type": "error", "icon": "jstree-warning", "children": []
+            }
+        if node.is_dir():
+            children = []
+            try:
+                for c in sorted(node.iterdir()):
+                    children.append(dir_to_js(c))
+            except PermissionError:
+                 children.append({
+                    "id": str(node) + "/permission_error", "text": "[Permission Denied]",
+                    "type": "error", "icon": "jstree-warning", "children": []
+                })
+            return {
+                "id": str(node),
+                "text": node.name or str(node),      # show root name
+                "children": children,
+                "type": "folder"
+            }
+        # It's a file
         return {
             "id": str(node),
-            "text": node.name or str(node),      # show root name
-            "children": [dir_to_js(c) for c in sorted(node.iterdir())],
-            "type": "folder"
+            "text": node.name,
+            "icon": "jstree-file",
+            "type": "file",
+            "children": []
         }
-    return {
-        "id": str(node),
-        "text": node.name,
-        "icon": "jstree-file",
-        "type": "file",
-        "children": []
-    }
+    except Exception as e: # Catch other potential errors
+        app.logger.error(f"Error processing path {node}: {e}")
+        return {
+            "id": str(node), "text": f"{node.name} (error)",
+            "type": "error", "icon": "jstree-warning", "children": []
+        }
+
 
 # -------- ASCII subset tree ---------------------------------------
-def build_nested_dict(paths, root):
+def build_nested_dict(paths, root_for_display: Path):
     tree = {}
-    for p in paths:
-        # Ensure path p is relative to the effective root for this operation
-        # This might need adjustment depending on how 'root' is determined
-        # in the context of presets which might span different roots.
-        # For now, assuming paths in presets are absolute, and root is the original ROOT_DIR.
-        # If paths in presets can be relative, this logic needs more thought.
+    for p_str in paths:
+        p = Path(p_str)
         try:
-            rel_parts = Path(p).resolve().relative_to(root.resolve()).parts
-        except ValueError:
-            # Path p is not under the provided root, skip or handle as error
-            # For now, let's use the absolute path's parts if not relative to ROOT_DIR
-            # This part of the logic might need refinement if presets are loaded
-            # from a different root than the one used to build the current tree.
-            # The feature description implies presets store absolute paths.
-            rel_parts = Path(p).resolve().parts
-            if rel_parts and rel_parts[0] == '/': # Absolute path
-                rel_parts = rel_parts[1:] # remove root slash for display
-            rel_parts = [Path(p).name] # Fallback: just use the name
+            # Ensure paths are absolute before trying to make them relative
+            abs_p = p.resolve()
+            rel_parts = abs_p.relative_to(root_for_display.resolve()).parts
+        except ValueError: # Path is not under the root_for_display
+            # Fallback: use parts of the path from common ancestor or just its name
+            # This makes the tree structure for mixed-root selections potentially flat or less structured
+            rel_parts = (p.name,) # Show only the file/dir name if not relative
+        except Exception: # Catch other resolution errors
+             rel_parts = (p.name + " (path error)",)
+
 
         cursor = tree
         for part in rel_parts:
@@ -70,50 +118,31 @@ def ascii_tree(d, prefix=""):
         is_last = i == (len(items) - 1)
         connector = "└── " if is_last else "├── "
         lines.append(prefix + connector + name)
-        if child:
+        if child: # If it's a directory with children
             extension = "    " if is_last else "│   "
             lines.extend(ascii_tree(child, prefix + extension))
     return lines
 
-# ------------------------------------------------------------------
+# ------------------------------------------------------------------ ROUTES
 @app.route("/")
 def index():
     return render_template("index.html")
 
 @app.get("/api/tree")
 def api_tree():
-    # The 'path' argument from the request determines the root to display.
-    # ROOT_DIR acts as the initial default and a potential security boundary.
     requested_path_str = request.args.get("path")
     
     if requested_path_str:
         current_display_root = Path(requested_path_str).resolve()
-        # Security check: Ensure the requested path is either ROOT_DIR or a subdirectory of ROOT_DIR.
-        # This prevents navigating outside the initially configured ROOT_DIR.
-        # For more flexible root switching (any folder), this check might be removed or made configurable,
-        # but implies trust in the user or additional auth.
-        # The prompt implies "pick any folder", so this check could be too restrictive if
-        # the intention is to truly allow *any* path.
-        # However, for a web app, it's safer to keep it constrained initially.
-        # Let's assume for now that "any folder" still means "any folder the app is allowed to serve from
-        # by configuration or a higher-level check not shown".
-        # If the goal is to allow Browse *any* arbitrary system path the Flask process has access to,
-        # then the check `ROOT_DIR not in current_display_root.parents and current_display_root != ROOT_DIR`
-        # might be too restrictive or need to be re-evaluated based on security implications.
-        # Given the original code, let's adapt it to allow *any* path if specified,
-        # falling back to ROOT_DIR if no path is given.
-        # The prompt says "pick any folder, instantly reload the tree".
-        # The original check was:
-        # if ROOT_DIR not in root_req.parents and root_req != ROOT_DIR:
-        #    return jsonify({"error": "outside allowed root"}), 400
-        # For "pick any folder", this check is removed. Ensure the server has permissions.
     else:
-        current_display_root = ROOT_DIR
+        current_display_root = INITIAL_ROOT_DIR # Fallback to initial default
 
-    if not current_display_root.exists():
-        return jsonify({"error": f"Path not found: {current_display_root}"}), 404
-    if not current_display_root.is_dir():
-        return jsonify({"error": f"Path is not a directory: {current_display_root}"}), 400
+    if not current_display_root.is_dir(): # also implicitly checks exists() for dirs
+        # If it exists but not a dir, or doesn't exist.
+        # dir_to_js will handle specific error display for the node.
+        # We need to return *something* for jstree.
+        # Let's return the error state from dir_to_js for the root itself.
+        return jsonify(dir_to_js(current_display_root))
         
     return jsonify(dir_to_js(current_display_root))
 
@@ -122,139 +151,174 @@ def api_flatten():
     data = request.get_json(force=True)
     raw_paths = data.get("paths", [])
     
-    # Determine the effective root for displaying the tree structure.
-    # This should ideally come from the client, indicating which root was active when these paths were selected.
-    # For simplicity, if a currentRoot is active on the client, it should send it.
-    # If not, we might fall back to ROOT_DIR or try to infer.
-    # The paths in 'raw_paths' are absolute as per jsTree node IDs.
-    # We need a common ancestor to make the ASCII tree make sense.
-    
     if not raw_paths:
         return jsonify({"text": "No files selected."})
 
-    # Heuristic: Find common parent of selected paths to use as a local root for ASCII tree.
-    # Or, client could send its `currentRoot` when calling flatten.
-    # For now, let's try to find a common ancestor.
-    common_path = Path(os.path.commonpath([Path(p).parent for p in raw_paths])) if raw_paths else ROOT_DIR
-    
-    files = []
+    files_to_process = []
+    resolved_paths_for_structure = []
+
     for p_str in raw_paths:
-        pp = Path(p_str).resolve()
-        # Security: Ensure files are still accessible and within a reasonable scope if necessary.
-        # The original check was `(ROOT_DIR in pp.parents or pp == ROOT_DIR)`.
-        # With arbitrary root paths, this check needs to be re-evaluated.
-        # For now, we assume any path passed is valid if it's a file.
-        if pp.is_file():
-            files.append(pp)
-    
-    files.sort() # Ensure consistent order
-
-    # Use the determined common_path as the root for build_nested_dict
-    subset_root_for_ascii = common_path
-    # However, if all files are under the global ROOT_DIR, prefer that for consistency
-    # in relative_to calls for file content headers.
-    # This needs careful consideration based on `currentRoot` from the client.
-    # Let's assume client's `currentRoot` should be used if available.
-    # The prompt doesn't specify sending `currentRoot` with flatten, so we infer.
-
-    # If all paths are under a known root (e.g. the initial ROOT_DIR or a common parent)
-    # the ASCII tree and relative paths will be more sensible.
-    # The `build_nested_dict` and `ascii_tree` will use the paths as they are.
-    # The relative paths for file content headers need a sensible root.
-
-    # Let's use a dynamic root for the ASCII tree display based on selected files:
-    if files:
-        # Determine a suitable root for the ASCII tree representation.
-        # This could be the common ancestor of all selected files.
-        display_tree_root = Path(os.path.commonpath([str(f.parent) for f in files]))
-    else:
-        display_tree_root = Path(request.args.get("path", str(ROOT_DIR))).resolve() # Fallback to current or default root
-
-    subset = build_nested_dict([str(f) for f in files], display_tree_root)
-    header = "└── " + display_tree_root.name + "\n" # Start with the root of the selection
-    header += "\n".join(ascii_tree(subset, "    ")) + "\n\n"
-
-
-    body_parts = []
-    for f in files:
-        # For the content header, make path relative to the display_tree_root if possible,
-        # otherwise show a more absolute-like path.
         try:
-            rel_path_for_header = f.relative_to(display_tree_root)
-        except ValueError:
-            # If not directly under display_tree_root (e.g. display_tree_root is a deeper common parent)
-            # show path from a higher sensible root, or absolute.
-            # This can happen if files are selected from different "root" Browse sessions.
-            # For simplicity, just use the name or a simplified absolute path.
-            rel_path_for_header = f"../{f.name}" # Placeholder, ideally improve this
-
-        body_parts.append(f"# {rel_path_for_header}\n")
-        try:
-            body_parts.append(f.read_text(encoding="utf-8") + "\n\n") # Add newline for separation
-        except UnicodeDecodeError:
-            body_parts.append("[binary file skipped]\n\n")
+            pp = Path(p_str).resolve()
+            resolved_paths_for_structure.append(pp) # for building the ASCII tree
+            if pp.is_file():
+                files_to_process.append(pp)
         except Exception as e:
-            body_parts.append(f"[Error reading file {f.name}: {e}]\n\n")
+            app.logger.warning(f"Could not resolve or access path {p_str}: {e}")
+    
+    files_to_process.sort()
 
+    # Determine a common root for the ASCII tree display.
+    # If multiple roots were browsed and items selected from them,
+    # os.path.commonpath might be C:\ or / if not careful.
+    # We need a sensible display root.
+    if not resolved_paths_for_structure:
+        header = "No valid paths to display.\n\n"
+    else:
+        # Use common ancestor of all resolved paths (files and dirs) for the ASCII tree
+        common_ancestor_for_tree = Path(os.path.commonpath([str(p) for p in resolved_paths_for_structure]))
+        
+        # Build tree structure only from selected paths (files and directories)
+        subset = build_nested_dict([str(p) for p in resolved_paths_for_structure], common_ancestor_for_tree)
+        
+        # If the subset is based on a single common root, display that root's name.
+        # Otherwise, the "root" of the ASCII tree is implicit from the structure.
+        if common_ancestor_for_tree and len(subset) == 1 and next(iter(subset.keys())) == common_ancestor_for_tree.name:
+             header_root_name = "" # common_ancestor_for_tree.name already part of subset
+        elif common_ancestor_for_tree:
+             header_root_name = f"{common_ancestor_for_tree.name}/\n" # Indicate the base
+        else:
+            header_root_name = "Selected Items/\n"
+
+        header = "Structure of selected items:\n" + header_root_name
+        header += "\n".join(ascii_tree(subset)) + "\n\n"
+
+    body_parts = ["Content of selected files:\n"]
+    if not files_to_process:
+        body_parts.append("No files were selected or accessible to display content.\n")
+    
+    for f_path in files_to_process:
+        try:
+            # For file content headers, try to make path relative to a sensible root.
+            # This could be common_ancestor_for_tree or INITIAL_ROOT_DIR or just its name.
+            display_f_path = str(f_path)
+            try:
+                display_f_path = str(f_path.relative_to(common_ancestor_for_tree))
+            except ValueError:
+                # If not relative to common ancestor, use name or more absolute form
+                display_f_path = f".../{f_path.parent.name}/{f_path.name}"
+
+            body_parts.append(f"# File: {display_f_path}\n")
+            body_parts.append(f_path.read_text(encoding="utf-8") + "\n\n")
+        except UnicodeDecodeError:
+            body_parts.append(f"# File: {display_f_path}\n[binary file skipped]\n\n")
+        except Exception as e:
+            body_parts.append(f"# File: {display_f_path}\n[Error reading file: {e}]\n\n")
 
     return jsonify({"text": header + "".join(body_parts)})
 
 # ------------------------------------------------------------------ PRESET ROUTES
-@app.get("/api/presets") # New
-def list_presets():
-    files = sorted(p.with_suffix("").name for p in PRESET_DIR.glob("*.json"))
-    return jsonify(files)
+@app.get("/api/presets")
+def list_presets_api():
+    presets = []
+    for p_file in sorted(DEFAULT_PRESETS_DIR.glob("*.json")):
+        presets.append({"name": p_file.stem, "type": "default", "id": f"default/{p_file.stem}"})
+    for p_file in sorted(USER_PRESETS_DIR.glob("*.json")):
+        presets.append({"name": p_file.stem, "type": "user", "id": f"user/{p_file.stem}"})
+    return jsonify(presets)
 
-@app.get("/api/presets/<name>") # New
-def load_preset(name):
-    p = preset_path(name)
-    if not p.exists():
-        return jsonify({"error": "not found"}), 404
+@app.get("/api/presets/<path:preset_id>") # path converter to allow slashes
+def load_preset_api(preset_id):
+    # preset_id is expected to be "type/name", e.g., "default/myconfig" or "user/mysession"
+    try:
+        preset_type, name = preset_id.split('/', 1)
+    except ValueError:
+        return jsonify({"error": "Invalid preset ID format. Expected 'type/name'."}), 400
+
+    p = get_preset_path(name, preset_type)
+    if not p or not p.exists():
+        return jsonify({"error": f"Preset '{name}' of type '{preset_type}' not found"}), 404
+    
     try:
         data = json.loads(p.read_text())
-        # The prompt implies presets store an array of paths.
-        # The example shows `{"paths": [...]}` in the POST body,
-        # but the file format example is just `[...]`.
-        # Let's assume the file stores the array directly as per "Preset storage details".
-        if isinstance(data, dict) and "paths" in data: # To be robust
-             return jsonify(data["paths"])
-        elif isinstance(data, list):
-             return jsonify(data) # Assuming file directly contains list of paths
+        # Presets store an array of paths directly
+        if isinstance(data, list):
+             return jsonify(data)
         else:
-            # Fallback for the POST body format just in case it was stored like that
-            app.logger.warning(f"Preset '{name}' has unexpected format. Trying to read as list.")
-            return jsonify(data) # Or handle error more strictly
+            app.logger.warning(f"Preset '{preset_id}' has unexpected format. Expected a list.")
+            return jsonify({"error": "Invalid preset file format"}), 500
             
     except json.JSONDecodeError:
-        return jsonify({"error": "invalid preset file format"}), 500
+        return jsonify({"error": "Invalid preset file format"}), 500
     except Exception as e:
-        app.logger.error(f"Error loading preset {name}: {e}")
-        return jsonify({"error": "failed to load preset"}), 500
+        app.logger.error(f"Error loading preset {preset_id}: {e}")
+        return jsonify({"error": "Failed to load preset"}), 500
 
+@app.post("/api/presets/<name>") # Name here is just the preset name, type is implicit (user)
+def save_preset_api(name):
+    p = get_preset_path(name, "user")
+    if not p:
+        return jsonify({"error": "Invalid preset name"}), 400
 
-@app.post("/api/presets/<name>") # New
-def save_preset(name):
+    # Prevent overwriting default presets with the same name via this route
+    default_p = get_preset_path(name, "default")
+    if default_p and default_p.exists():
+        # Check if user is trying to save a name that exists as default
+        # Technically, user presets are in a different dir, so names can collide.
+        # This check is more about avoiding confusion if a user names their preset "example"
+        # and a default "example" exists. The paths are distinct due to subfolder.
+        pass # Names can collide as they are in different folders (default/ vs user/)
+
     data = request.get_json(force=True)
-    paths = data.get("paths", []) # Expects {"paths": [...]} in request body
-    # Store as a simple list of paths in the JSON file as per "Preset storage details"
+    paths = data.get("paths", []) 
+    
     try:
-        preset_path(name).write_text(json.dumps(paths, indent=2))
-        return jsonify({"saved": True})
+        p.write_text(json.dumps(paths, indent=2))
+        return jsonify({"saved": True, "id": f"user/{name}"})
     except Exception as e:
-        app.logger.error(f"Error saving preset {name}: {e}")
-        return jsonify({"error": "failed to save preset"}), 500
+        app.logger.error(f"Error saving preset {name} (user): {e}")
+        return jsonify({"error": "Failed to save user preset"}), 500
 
+@app.delete("/api/presets/<path:preset_id>") # path converter for "user/name"
+def delete_preset_api(preset_id):
+    try:
+        preset_type, name = preset_id.split('/', 1)
+    except ValueError:
+        return jsonify({"error": "Invalid preset ID format. Expected 'type/name'."}), 400
 
-@app.delete("/api/presets/<name>") # New
-def delete_preset(name):
-    p = preset_path(name)
+    if preset_type != "user":
+        return jsonify({"error": "Only user presets can be deleted."}), 403
+        
+    p = get_preset_path(name, "user")
+    if not p: # Should not happen if type is 'user' and name is valid
+        return jsonify({"error": "Invalid preset name for deletion."}), 400
+
     try:
         if p.exists():
             p.unlink()
-        return jsonify({"deleted": True})
+            return jsonify({"deleted": True})
+        else:
+            return jsonify({"error": "User preset not found for deletion."}), 404
     except Exception as e:
-        app.logger.error(f"Error deleting preset {name}: {e}")
-        return jsonify({"error": "failed to delete preset"}), 500
+        app.logger.error(f"Error deleting preset {preset_id}: {e}")
+        return jsonify({"error": "Failed to delete preset"}), 500
 
 if __name__ == "__main__":
+    # Example: Create a dummy default preset if it doesn't exist, for testing
+    dummy_default_preset_path = DEFAULT_PRESETS_DIR / "example_default.json"
+    if not dummy_default_preset_path.exists():
+        try:
+            # This path should be an absolute path on your system where app.py exists
+            # For example, if app.py is /path/to/treeb/app.py, use that.
+            # Path.resolve() on a relative path here might be tricky if CWD is not project root.
+            example_content_path = (APP_ROOT / "app.py").resolve()
+            if example_content_path.exists():
+                 dummy_default_preset_path.write_text(json.dumps([str(example_content_path)], indent=2))
+            else:
+                # Fallback content if app.py isn't easily resolvable this way
+                dummy_default_preset_path.write_text(json.dumps(["/path/to/a/default/file.txt"], indent=2))
+
+        except Exception as e:
+            print(f"Could not create dummy default preset: {e}")
+            
     app.run(debug=True, port=5000)

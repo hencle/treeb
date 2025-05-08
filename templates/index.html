@@ -23,8 +23,15 @@
 
   /* ---------- output pane ---------- */
   #outputButtons  { margin-bottom:.5rem; }
-  #result         { flex:1 1 auto; width:100%; max-width:100%;
-                    box-sizing:border-box; resize:vertical; }
+  #result {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 600px; /* Added this line to increase default vertical size */
+}
+
 
   /* ---------- small screens ---------- */
   @media (max-width: 800px){
