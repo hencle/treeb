@@ -40,39 +40,26 @@
     border: 1px solid #ccc; border-radius: 4px;
   }
   
-  /* --- CSS for excluded items in jsTree --- */
+  /* CSS for excluded items in jsTree */
   .jstree-anchor.excluded-item-style {
     opacity: 0.6;
-    font-style: italic !important; /* Make sure italic style applies */
+    font-style: italic !important; 
   }
-
-  /* Target the checkbox icon (<i> tag) itself when it's part of an excluded item's anchor 
-     AND has the jstree-checkbox-disabled class (applied by disable_checkbox()).
-     This selector is quite specific. */
+  /* Style for the checkbox of an excluded item when it's disabled by disable_checkbox() */
   .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checkbox-disabled {
     opacity: 0.4 !important; /* Further fade the checkbox background/border */
   }
-
-  /* This is the crucial part: Force the icon part (::before pseudo-element for font icons,
-     or the background for sprite themes) to look UNCHECKED.
-     The default theme uses a sprite and background-position.
-     -4px -4px is for the UNCHECKED state in the 32px default theme sprite.
-     Adjust if your theme or sprite size is different.
-  */
+  /* Force the icon part to look UNCHECKED for excluded items */
   .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checkbox-disabled::before,
   .jstree-anchor.excluded-item-style.jstree-clicked > i.jstree-checkbox::before, /* If parent cascade adds jstree-clicked to anchor */
   .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-clicked::before { /* If cascade adds jstree-clicked to checkbox <i> */
-    background-position: -4px -4px !important; /* Force UNCHECKED sprite position */
-    /* If your theme uses `content` for checkbox icons (font icons): */
-    /* content: "\f00c" !important; /* Replace with your theme's UNCHECKED icon code and adjust */
-    /* For FontAwesome, an unchecked box might be a specific class or content:'\f096' */
-    /* For now, background-position is for default theme */
+    background-position: -4px -4px !important; /* Default theme UNCHECKED sprite (32px) */
+                                             /* For 40px sprite: -5px -5px */
   }
-  /* If the theme also changes classes on the <i> tag directly for checked state (e.g. adds .jstree-checked to <i>): */
+   /* If the theme also changes classes on the <i> tag directly for checked state */
    .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checked.jstree-checkbox-disabled::before {
       background-position: -4px -4px !important; /* Still force UNCHECKED */
    }
-
 
   @media (max-width: 900px){
     #main { flex-direction:column; }

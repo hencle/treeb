@@ -19,30 +19,62 @@ SELECTION_PRESET_BASE_DIR = PRESET_BASE_DIR / "selections"
 DEFAULT_SELECTION_PRESETS_DIR = SELECTION_PRESET_BASE_DIR / "default"
 USER_SELECTION_PRESETS_DIR = SELECTION_PRESET_BASE_DIR / "user"
 
-# Exclusion preset directories are defined but not actively managed by UI anymore
 EXCLUSION_PRESET_BASE_DIR = PRESET_BASE_DIR / "exclusions" 
 DEFAULT_EXCLUSION_PRESETS_DIR = EXCLUSION_PRESET_BASE_DIR / "default"
 
 # Create necessary preset directories
 for p_dir in [PRESET_BASE_DIR, SELECTION_PRESET_BASE_DIR, DEFAULT_SELECTION_PRESETS_DIR,
-              USER_SELECTION_PRESETS_DIR, EXCLUSION_PRESET_BASE_DIR, # Keep if manually placing defaults
+              USER_SELECTION_PRESETS_DIR, EXCLUSION_PRESET_BASE_DIR,
               DEFAULT_EXCLUSION_PRESETS_DIR]: 
     p_dir.mkdir(exist_ok=True)
 
-
-# --- Hardcoded Active Exclusion Rules (System Default) ---
+# --- Default Exclusion Data (Master Definition for system_defaults.json) ---
 class DefaultExclusionData:
     DIRS = [".git", ".venv", "venv", ".env", "env", "node_modules", ".next", "__pycache__", ".pytest_cache", ".mypy_cache", "build", "dist", "target", "out", "site", ".vscode", ".idea"]
-    FILES = [".DS_Store", "Thumbs.db", ".env"]
+    FILES = [".DS_Store", "Thumbs.db", ".env"] # .env file specifically
     PATTERNS = ["*.pyc", "*.pyo", "*.swp", "*.swo", "*.swn", "*.log", "*.tmp", "*.temp", "*ignore", "*.lock"]
 
-ACTIVE_EXCLUSION_RULES = {
-    "description": "Hardcoded system default exclusions.",
-    "dirs": list(DefaultExclusionData.DIRS),
-    "files": list(DefaultExclusionData.FILES),
-    "patterns": list(DefaultExclusionData.PATTERNS)
-}
-app.logger.info(f"Initialized with hardcoded active exclusion rules.")
+# --- Function to Load Initial Active Exclusions ---
+def load_or_create_initial_exclusions() -> dict:
+    # This function is called once at app startup to set ACTIVE_EXCLUSION_RULES
+    default_exclusion_file_path = DEFAULT_EXCLUSION_PRESETS_DIR / "system_defaults.json"
+    
+    # Define the structure and content based on DefaultExclusionData
+    rules_from_code = {
+        "description": "System default exclusions (source: app.py DefaultExclusionData). Applied at startup.",
+        "dirs": list(DefaultExclusionData.DIRS),
+        "files": list(DefaultExclusionData.FILES),
+        "patterns": list(DefaultExclusionData.PATTERNS)
+    }
+
+    if default_exclusion_file_path.exists():
+        try:
+            with open(default_exclusion_file_path, 'r', encoding='utf-8') as f:
+                loaded_rules = json.load(f)
+            # Basic validation of loaded rules structure
+            if all(key in loaded_rules for key in ["description", "dirs", "files", "patterns"]) and \
+               isinstance(loaded_rules["dirs"], list) and \
+               isinstance(loaded_rules["files"], list) and \
+               isinstance(loaded_rules["patterns"], list):
+                app.logger.info(f"Loaded active exclusion rules from {default_exclusion_file_path}")
+                return loaded_rules # Use rules from file
+            else:
+                app.logger.warning(f"File {default_exclusion_file_path} has invalid structure. Using internal defaults and attempting to recreate file.")
+        except Exception as e:
+            app.logger.error(f"Error loading {default_exclusion_file_path}: {e}. Using internal defaults and attempting to recreate file.")
+
+    # Fallback: Use DefaultExclusionData and create/overwrite the file
+    app.logger.info(f"Using internal DefaultExclusionData. Creating/overwriting {default_exclusion_file_path} for user reference.")
+    try:
+        DEFAULT_EXCLUSION_PRESETS_DIR.mkdir(parents=True, exist_ok=True) # Ensure dir exists
+        with open(default_exclusion_file_path, 'w', encoding='utf-8') as f:
+            json.dump(rules_from_code, f, indent=2)
+        app.logger.info(f"Created/Updated default exclusion file: {default_exclusion_file_path}")
+    except Exception as e:
+        app.logger.error(f"Could not create/update default exclusion file {default_exclusion_file_path}: {e}")
+    return rules_from_code # Return the rules derived from code
+
+ACTIVE_EXCLUSION_RULES = load_or_create_initial_exclusions()
 
 
 # --- Tiktoken Configuration & LLM Context ---
@@ -64,18 +96,23 @@ def get_selection_preset_path(name: str, preset_type: str) -> Path | None:
     return base_dir / f"{safe_name}.json" if base_dir else None
 
 def check_if_item_is_excluded(item: Path, rules: dict) -> dict | None:
+    """Checks if a single item matches exclusion rules based on its name and type."""
     if item.is_dir():
-        if item.name in rules.get("dirs", []): return {"type": "Directory Name", "rule": item.name}
+        if item.name in rules.get("dirs", []):
+            return {"type": "Directory Name", "rule": item.name}
         for pattern in rules.get("patterns", []):
-            if item.match(pattern): return {"type": "Directory Pattern", "rule": pattern}
+            if item.match(pattern): 
+                return {"type": "Directory Pattern", "rule": pattern}
     elif item.is_file():
-        if item.name in rules.get("files", []): return {"type": "File Name", "rule": item.name}
+        if item.name in rules.get("files", []):
+            return {"type": "File Name", "rule": item.name}
         for pattern in rules.get("patterns", []):
-            if item.match(pattern): return {"type": "File Pattern", "rule": pattern}
+            if item.match(pattern):
+                return {"type": "File Pattern", "rule": pattern}
     return None
 
-def dir_to_js(node: Path):
-    global ACTIVE_EXCLUSION_RULES
+def dir_to_js(node: Path): 
+    global ACTIVE_EXCLUSION_RULES 
     try:
         if not node.exists(): return {"id": str(node), "text": f"{node.name} (Not Found)", "type": "error", "icon": "jstree-warning", "children": [], "data": {"excluded_info": None}}
         exclusion_info = check_if_item_is_excluded(node, ACTIVE_EXCLUSION_RULES)
@@ -110,6 +147,7 @@ def ascii_tree(d, prefix=""):
         lines.append(prefix + connector + name)
         if child: extension = "    " if is_last else "│   "; lines.extend(ascii_tree(child, prefix + extension))
     return lines
+
 # ------------------------------------------------------------------ ROUTES
 @app.route("/")
 def index(): return render_template("index.html", initial_path=str(INITIAL_ROOT_DIR))
@@ -128,27 +166,24 @@ def api_flatten():
     raw_paths_from_client = data.get("paths", [])
     token_count = 0; model_percentages = []
     
-    filtered_raw_paths = []
+    genuinely_processable_paths = []
     for p_str in raw_paths_from_client:
-        path_item = Path(p_str).resolve()
-        excluded_by_dir_rule = False
-        current_path_for_check = path_item
+        path_item = Path(p_str).resolve(); excluded_by_containing_dir = False
+        current_check_path = path_item
         while True:
-            if current_path_for_check.name in ACTIVE_EXCLUSION_RULES.get("dirs", []):
-                excluded_by_dir_rule = True; break
-            if current_path_for_check == current_path_for_check.parent: break
-            current_path_for_check = current_path_for_check.parent
-        if excluded_by_dir_rule: app.logger.debug(f"Flatten: Excluded by dir rule: {p_str}"); continue
+            if current_check_path.name in ACTIVE_EXCLUSION_RULES.get("dirs", []):
+                excluded_by_containing_dir = True; break
+            if current_check_path.parent == current_check_path: break
+            current_check_path = current_check_path.parent
+        if excluded_by_containing_dir: app.logger.debug(f"Flatten: Excluded by dir rule: {p_str}"); continue
         
-        if path_item.is_file():
-            if path_item.name in ACTIVE_EXCLUSION_RULES.get("files", []): app.logger.debug(f"Flatten: Excluded by file name: {p_str}"); continue
-            if any(path_item.match(p) for p in ACTIVE_EXCLUSION_RULES.get("patterns", [])): app.logger.debug(f"Flatten: Excluded by file pattern: {p_str}"); continue
-        elif path_item.is_dir():
-            if any(path_item.match(p) for p in ACTIVE_EXCLUSION_RULES.get("patterns", [])): app.logger.debug(f"Flatten: Excluded by dir pattern: {p_str}"); continue
-        filtered_raw_paths.append(p_str)
+        item_direct_exclusion = check_if_item_is_excluded(path_item, ACTIVE_EXCLUSION_RULES)
+        if item_direct_exclusion: app.logger.debug(f"Flatten: Excluded by direct rule: {p_str} - {item_direct_exclusion}"); continue
+        genuinely_processable_paths.append(p_str)
 
-    if not filtered_raw_paths:
-        text_content = "No files selected or all selected items are excluded."
+    if not genuinely_processable_paths:
+        text_content = "No files selected or all selected items are excluded by current rules."
+        # (Token counting logic for this message)
         if ENCODING:
             try: tokens = ENCODING.encode(text_content, disallowed_special=()); token_count = len(tokens)
             except Exception as e: app.logger.error(f"Error tokenizing message: {e}")
@@ -157,18 +192,15 @@ def api_flatten():
                 percentage = round((token_count / model["window"]) * 100, 2); model_percentages.append({"name": model["displayName"], "percentage": (0.01 if 0 < percentage < 0.01 else percentage)})
         return jsonify({"text": text_content, "token_count": token_count, "model_percentages": model_percentages})
 
-    files_to_process = []
-    resolved_paths_for_structure = []
-    # *** THIS IS THE CORRECTED TRY-EXCEPT BLOCK ***
-    for p_str in filtered_raw_paths:
+    files_to_process = []; resolved_paths_for_structure = []
+    for p_str in genuinely_processable_paths:
         try:
-            pp = Path(p_str).resolve() # Statement 1
-            resolved_paths_for_structure.append(pp) # Statement 2
-            if pp.is_file(): # This was indicated as line 160
-                files_to_process.append(pp) # Statement 3
-        except Exception as e: # Correctly aligned `except`
+            pp = Path(p_str).resolve()
+            resolved_paths_for_structure.append(pp)
+            if pp.is_file():
+                files_to_process.append(pp)
+        except Exception as e:
             app.logger.warning(f"Could not resolve or access path {p_str} during flatten content stage: {e}")
-    # *** END OF CORRECTION ***
     files_to_process.sort()
     
     header = ""; common_ancestor_for_tree = None 
@@ -187,7 +219,7 @@ def api_flatten():
             if not name_to_display or name_to_display == ".": name_to_display = str(common_ancestor_for_tree) if str(common_ancestor_for_tree) != "." else "Selected Items"
             header_root_name = f"{name_to_display}/\n"
         else: header_root_name = "Selected Items/\n"
-        header = "Structure of selected items:\n" + header_root_name + "\n".join(ascii_tree(subset)) + "\n\n"
+        header = "code:\n" + header_root_name + "\n".join(ascii_tree(subset)) + "\n\n"
     body_parts = ["Content of selected files:\n"]
     if not files_to_process: body_parts.append("No files selected/accessible (after exclusion).\n")
     else:
@@ -225,7 +257,7 @@ def load_selection_preset_api(preset_id):
     p = get_selection_preset_path(name, preset_type)
     if not p or not p.exists(): return jsonify({"error": f"Preset '{name}' not found"}), 404
     try:
-        paths_from_preset_file = json.loads(p.read_text())
+        paths_from_preset_file = json.loads(p.read_text(encoding='utf-8'))
         resolved_absolute_paths = []
         if isinstance(paths_from_preset_file, list):
             for path_str_in_file in paths_from_preset_file:
@@ -251,7 +283,7 @@ def save_selection_preset_api(name):
         except ValueError: paths_to_save_in_preset.append(str(path_obj.resolve()))
     try:
         preset_file_path.parent.mkdir(parents=True, exist_ok=True)
-        preset_file_path.write_text(json.dumps(paths_to_save_in_preset, indent=2))
+        preset_file_path.write_text(json.dumps(paths_to_save_in_preset, indent=2), encoding='utf-8')
         return jsonify({"saved": True, "id": f"user/{name}"})
     except Exception as e: return jsonify({"error": f"Failed to save user preset: {e}"}), 500
 
@@ -267,16 +299,19 @@ def delete_selection_preset_api(preset_id):
         else: return jsonify({"error": "User preset not found."}), 404
     except Exception as e: return jsonify({"error": f"Failed to delete preset: {e}"}), 500
 
-# REMOVED: All /api/exclusions/* routes
-
 if __name__ == "__main__":
+    # Ensure initial active exclusions are determined (loads or creates system_defaults.json)
+    # This call is implicitly done when ACTIVE_EXCLUSION_RULES is defined globally using the function.
+    # load_or_create_initial_exclusions() # No need to call again if module-level assignment works
+
+    # --- Default Selection Preset Generation ---
     def create_default_selection_preset(preset_name: str, relative_paths_to_store: list[str]):
         preset_file = DEFAULT_SELECTION_PRESETS_DIR / f"{preset_name}.json"
-        if not relative_paths_to_store:
+        if not relative_paths_to_store: 
             if not preset_file.exists():
                 try:
                     preset_file.parent.mkdir(parents=True, exist_ok=True)
-                    preset_file.write_text(json.dumps([], indent=2))
+                    preset_file.write_text(json.dumps([], indent=2), encoding='utf-8')
                     app.logger.info(f"Created empty default selection preset: {preset_file.name}")
                 except Exception as e: app.logger.error(f"Could not create empty default preset {preset_file.name}: {e}")
             else: app.logger.info(f"Empty default selection preset '{preset_file.name}' already exists.")
@@ -289,11 +324,11 @@ if __name__ == "__main__":
         if not preset_file.exists() and verified_paths_to_store:
             try:
                 preset_file.parent.mkdir(parents=True, exist_ok=True)
-                preset_file.write_text(json.dumps(verified_paths_to_store, indent=2))
+                preset_file.write_text(json.dumps(verified_paths_to_store, indent=2), encoding='utf-8')
                 app.logger.info(f"Created default selection preset: {preset_file.name}")
             except Exception as e: app.logger.error(f"Could not create default preset {preset_file.name}: {e}")
         elif preset_file.exists(): app.logger.info(f"Default selection preset '{preset_file.name}' already exists.")
 
-    create_default_selection_preset("default", []) # Default is empty
+    create_default_selection_preset("default", [])
             
     app.run(debug=True, port=5000)

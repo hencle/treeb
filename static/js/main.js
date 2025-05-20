@@ -6,35 +6,29 @@ $(function () {
     return $("#rootPath").val().trim();
   }
 
+  // Helper function to apply styles AND disable checkbox for excluded nodes
   function applyExclusionStyles(instance) {
     if (!instance) instance = $tree.jstree(true);
-    if (!instance) return;
+    if (!instance) { console.warn("applyExclusionStyles: jsTree instance not found."); return; }
 
-    // Iterate over all nodes. Using get_json for comprehensive data access.
-    const allNodesData = instance.get_json('#', { flat: true }); 
-    allNodesData.forEach(nodeDataObj => {
-        const nodeInDom = instance.get_node(nodeDataObj.id, true); // Get the LI jQuery object
-        if (nodeInDom && nodeInDom.length) {
-            const anchor = nodeInDom.children('.jstree-anchor');
+    const allNodeIds = instance.get_json('#', { flat: true, no_state: true, no_data: false }).map(n => n.id);
+
+    allNodeIds.forEach(nodeId => {
+        const nodeObj = instance.get_node(nodeId);
+        const domNodeLi = instance.get_node(nodeId, true); 
+
+        if (nodeObj && domNodeLi && domNodeLi.length) {
+            const anchor = domNodeLi.children('.jstree-anchor');
             
-            // Reset styles and state first
+            instance.enable_checkbox(nodeObj); // Default to enabled, then disable if excluded
             anchor.removeClass('excluded-item-style');
-            nodeInDom.removeAttr('title');
-            if (!instance.is_disabled(nodeDataObj)) { // Only enable if not already disabled for other reasons
-                 instance.enable_checkbox(nodeDataObj);
-            }
+            domNodeLi.removeAttr('title'); 
 
-            if (nodeDataObj.data && nodeDataObj.data.excluded_info) {
+            if (nodeObj.data && nodeObj.data.excluded_info) {
                 anchor.addClass('excluded-item-style');
-                const reason = `Excluded by ${nodeDataObj.data.excluded_info.type}: "${nodeDataObj.data.excluded_info.rule}"`;
-                nodeInDom.attr('title', reason);
-                instance.disable_checkbox(nodeDataObj); // Disables checkbox interaction
-                
-                // Crucially, ensure it's visually unchecked if the cascade somehow checked it
-                // before this style application or before the check_node event corrected it.
-                if (instance.is_checked(nodeDataObj)) {
-                    instance.uncheck_node(nodeDataObj);
-                }
+                const reason = `Excluded by ${nodeObj.data.excluded_info.type}: "${nodeObj.data.excluded_info.rule}"`;
+                domNodeLi.attr('title', reason);
+                instance.disable_checkbox(nodeObj); 
             }
         }
     });
@@ -55,44 +49,52 @@ $(function () {
           url: "/api/tree",
           data: function (node) { return { 'path': $("#rootPath").val().trim() }; },
           cache: false, 
-          error: function(xhr, textStatus, errorThrown) { /* ... (error handling as before) ... */
+          error: function(xhr, textStatus, errorThrown) {
               let errorMsg = "jsTree AJAX Error: Failed to load tree data.";
               if (xhr.responseJSON && xhr.responseJSON.error) { errorMsg = `Server Error: ${xhr.responseJSON.error}`; }
               else if (xhr.statusText && xhr.statusText !== "error") { errorMsg = `Server Error (${xhr.status}): ${xhr.statusText}`; }
               else if (errorThrown) { errorMsg = `Error: ${errorThrown}`; }
-              $tree.html(`<p style="color:red;">${errorMsg}</p>`); console.error("jsTree AJAX data error:", xhr, textStatus, errorThrown);
+              $tree.html(`<p style="color:red;">${errorMsg}</p>`);
+              console.error("jsTree AJAX data error:", xhr, textStatus, errorThrown);
           }
         },
         check_callback: true,
         themes: { responsive: false, stripes: true, dots: true }
       },
-      plugins: ["checkbox", "types"],
-      checkbox: { three_state: true, cascade: "up+down" }
-    })
-    .on('loaded.jstree', function (e, data) { applyExclusionStyles(data.instance); })
-    .on('refresh.jstree', function(e, data) { applyExclusionStyles($.jstree.reference(this)); })
-    .on('after_open.jstree', function(e, data){ applyExclusionStyles(data.instance); })
-    .on('load_error.jstree', (e, d) => { /* ... (error handling as before) ... */
-        $tree.html(`<p style="color:red;">jsTree Internal Load Error: ${d.error || 'Unknown issue'}</p>`); console.error("jsTree load_error (internal):", d);
-    })
-    .on('check_node.jstree', function (e, data) { // Fires AFTER a node is checked
-        if (data.node && data.node.data && data.node.data.excluded_info) {
-            // If an excluded node somehow got checked (e.g., cascade), immediately uncheck it.
-            // This corrects the internal state and should trigger a visual update.
-            data.instance.uncheck_node(data.node);
+      plugins: ["checkbox", "types", "conditionalselect"], 
+      checkbox: { 
+        three_state: true, 
+        cascade: "up+down" 
+      },
+      conditionalselect: function (node, event) {
+        // Check if node itself or any parent is effectively excluded
+        let instance = $.jstree.reference(node.id); // Get instance from node
+        let current = node;
+        while(current) { // Iterate up to root
+            if (current.data && current.data.excluded_info) {
+                return false; // Prevent selection if node or any ancestor is excluded
+            }
+            if (current.parent === '#' || !current.parent) break; // Reached root or no parent
+            current = instance.get_node(current.parent);
         }
+        return true;
+      }
+    })
+    .on('loaded.jstree', function (e, data) { 
+        applyExclusionStyles(data.instance);
+    })
+    .on('refresh.jstree', function(e, data) { 
+        applyExclusionStyles($.jstree.reference(this)); 
+    })
+    .on('after_open.jstree', function(e, data){ 
+        applyExclusionStyles(data.instance); 
+    })
+    .on('load_error.jstree', (e, d) => { 
+        $tree.html(`<p style="color:red;">jsTree Internal Load Error: ${d.error || 'Unknown jsTree issue'}</p>`);
+        console.error("jsTree load_error event (internal):", d);
     });
   }
 
-  // --- (Selection Preset functions: refreshPresetList, button handlers for Load/Save/Delete Presets) ---
-  // --- (Path input handlers: btnLoadPath, rootPath keypress) ---
-  // --- (Flatten and Copy logic: btnGenerate, btnCopy) ---
-  // These sections remain IDENTICAL to your last fully working version of main.js
-  // that already included the refined get_checked logic for btnGenerate and btnSavePreset.
-  // For brevity, only the modified/relevant parts (buildTree, applyExclusionStyles) are shown in full detail here.
-  // Make sure to integrate these into your complete main.js.
-  
-  // Copied from previous complete version for self-containment:
   function refreshPresetList() { 
     $.getJSON("/api/presets", list => {
       const $sel = $("#presetList").empty().append('<option value="">- Select Selection Preset -</option>');
@@ -115,15 +117,9 @@ $(function () {
   $("#btnSavePreset").on("click", () => {
     const n = prompt("Save selection as (user preset):"); if (!n || n.trim()==="") return;
     const ti = $tree.jstree(true); if (!ti) {alert("Tree not initialized."); return;}
-    const allCheckedNodes = ti.get_checked(false); 
-    const enabledCheckedNodes = allCheckedNodes.filter(nodeId => {
-        const nodeObj = ti.get_node(nodeId);
-        return nodeObj && !(nodeObj.data && nodeObj.data.excluded_info); 
-    });
-    if (allCheckedNodes.length > 0 && enabledCheckedNodes.length === 0) {
-        alert("All visually selected items are excluded. No valid items to save in preset."); return;
-    }
-    fetch("/api/presets/"+encodeURIComponent(n.trim()), {method:"POST", headers:{"Content-Type":"application/json"},body:JSON.stringify({paths:enabledCheckedNodes})})
+    const checkedNodes = ti.get_checked(false); // conditionalselect ensures these are not excluded
+    if (checkedNodes.length === 0) { alert("No items selected to save in preset."); return; }
+    fetch("/api/presets/"+encodeURIComponent(n.trim()), {method:"POST", headers:{"Content-Type":"application/json"},body:JSON.stringify({paths:checkedNodes})})
     .then(r=>{if(!r.ok)return r.json().then(e=>{throw new Error(e.error||"Failed to save selection preset")}); return r.json();})
     .then(d=>{if(d.saved){refreshPresetList();$("#presetList").val(d.id);}else alert("Error saving selection preset: "+(d.error||"Unknown error"));}).catch(e=>{alert("Error: "+e.message);console.error("Save selection preset error:",e);});
   });
@@ -135,17 +131,17 @@ $(function () {
         const ti=$tree.jstree(true); if(!ti){alert("Tree not initialized. Cannot load preset.");return;} 
         ti.uncheck_all(true); 
         const sp=pths.map(p=>String(p)); 
-        const nodesToActuallyCheck = []; let excludedCount = 0;
-        sp.forEach(nodeId => {
-            const nodeObj = ti.get_node(nodeId);
-            if (nodeObj && nodeObj.data && nodeObj.data.excluded_info) { excludedCount++; }
-            else if (nodeObj) { nodesToActuallyCheck.push(nodeId); }
-            else { console.warn("Path from preset not found in current tree:", nodeId); }
-        });
-        if (excludedCount > 0) { alert(`Note: ${excludedCount} item(s) from the preset are currently excluded and will not be selected.`); }
-        ti.check_node(nodesToActuallyCheck);
-        applyExclusionStyles(ti); 
-        nodesToActuallyCheck.forEach(nId=>{let cn=ti.get_node(nId);if(cn){let pr=ti.get_parent(cn);while(pr&&pr!=="#"){ti.open_node(pr,null,0);pr=ti.get_parent(pr);}}});
+        
+        // Attempt to check nodes; conditionalselect will prevent checking excluded ones.
+        ti.check_node(sp); 
+        applyExclusionStyles(ti); // Ensure styles are correct after check attempts
+
+        const actuallyChecked = ti.get_checked(false);
+        let attemptedCount = sp.length;
+        if (attemptedCount > 0 && actuallyChecked.length < attemptedCount) {
+             alert(`Note: ${attemptedCount - actuallyChecked.length} item(s) from the preset were not selected as they are currently excluded or do not exist.`);
+        }
+        actuallyChecked.forEach(nId=>{let cn=ti.get_node(nId);if(cn){let pr=ti.get_parent(cn);while(pr&&pr!=="#"){ti.open_node(pr,null,0);pr=ti.get_parent(pr);}}});
     }).catch(e=>{alert("Error loading selection preset: "+e.message);console.error("Load selection preset error:",e);});
   });
 
@@ -160,20 +156,13 @@ $(function () {
   $("#btnGenerate").on("click", () => {
     const treeInstance = $tree.jstree(true);
     if (!treeInstance) { alert("Tree not init."); $("#result").val("Tree N/A."); $("#charCountDisplay").html(""); return; }
-    const allCheckedNodes = treeInstance.get_checked(false); 
-    const nonExcludedCheckedNodes = allCheckedNodes.filter(nodeId => {
-        const nodeObj = treeInstance.get_node(nodeId);
-        return nodeObj && !(nodeObj.data && nodeObj.data.excluded_info);
-    });
-    if (allCheckedNodes.length > 0 && nonExcludedCheckedNodes.length === 0) {
-        alert("All selected items are currently excluded by hardcoded rules. Nothing to generate.");
-        $("#result").val("All selected items are excluded."); $("#charCountDisplay").html("0 tokens"); return;
-    }
-     if (nonExcludedCheckedNodes.length === 0) { 
-        $("#result").val("No processable items selected."); $("#charCountDisplay").html("0 tokens"); return;
+    const checkedNodes = treeInstance.get_checked(false); // conditionalselect ensures these are not effectively excluded
+    if (checkedNodes.length === 0) {
+        $("#result").val("No items selected (or all selections are excluded by hardcoded rules).");
+        $("#charCountDisplay").html("0 tokens"); return;
     }
     $("#result").val("Generating..."); $("#charCountDisplay").html("Calculating...");
-    fetch("/api/flatten", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paths: nonExcludedCheckedNodes }) })
+    fetch("/api/flatten", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paths: checkedNodes }) })
     .then(response => { if (!response.ok) { return response.json().catch(() => response.text().then(text => { throw new Error("Server error: " + (response.statusText || text)); })) .then(errData => { if (errData && errData.error) throw new Error(errData.error); if (typeof errData === 'string') throw new Error("Server error: " + errData); throw new Error("Generate failed. Status: " + response.status);  }); } return response.json(); })
     .then(data => {
         $("#result").val(data.text !== undefined ? data.text : "Error: No text.");

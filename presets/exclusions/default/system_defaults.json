@@ -1,5 +1,5 @@
 {
-  "description": "Standard sensible defaults for most projects.",
+  "description": "System default exclusions (source: app.py DefaultExclusionData). Applied at startup.",
   "dirs": [
     ".git",
     ".venv",
