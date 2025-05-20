@@ -1,10 +1,9 @@
 
 # treeb
 
-Flatten repos and feed it into llms
+Flatten repos by selection and feed it into llms
 
 ![treeb User Interface](treeb-ui-screenshot.png)
-*(To make the image display: create an `assets` folder in your project root, place `treeb-ui-screenshot.png` inside it, and commit both.)*
 
 `treeb` provides a web UI to visually select files and directories, then generates a combined text output including an ASCII tree and file contents. It's designed for preparing context for Large Language Models.
 
