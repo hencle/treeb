@@ -9,68 +9,104 @@
 <script src="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/jstree.min.js"></script>
 
 <style>
-  /* ---------- base ---------- */
-  body { font-family: system-ui, sans-serif; margin: 1.5rem; }
+  body { font-family: system-ui, sans-serif; margin: 1.5rem; font-size: 14px; }
+  #toolbar { 
+    margin-bottom: 1rem; 
+    padding-bottom: 0.75rem; 
+    border-bottom: 1px solid #e0e0e0; 
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  #toolbar input[type="text"] { width: 25rem; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+  #toolbar select { padding: 6px; border: 1px solid #ccc; border-radius: 4px; margin-right: 5px;}
+  #toolbar button { 
+    padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; 
+    background-color: #f0f0f0; cursor: pointer; margin-right: 5px;
+  }
+  #toolbar button:hover { background-color: #e0e0e0; }
 
-  /* ---------- toolbar ---------- */
-  #toolbar { margin-bottom: 1rem; }
-  #toolbar input[type="text"] { width: 28rem; }
-
-  /* ---------- two-column layout ---------- */
-  #main           { display:flex; gap:2rem; align-items:flex-start; }
-  #treeSection    { flex:1 1 300px; min-width:240px; }
-  #outputSection  { flex:1 1 400px; display:flex; flex-direction:column; }
-
-  /* ---------- output pane ---------- */
-  #outputButtons  { margin-bottom:.5rem; }
+  #main { display:flex; gap:2rem; align-items:flex-start; margin-top: 1rem;}
+  #treeSection { flex:1 1 350px; min-width:280px; }
+  #outputSection { flex:1 1 450px; display:flex; flex-direction:column; }
+  
+  #outputButtons { margin-bottom:.5rem; display: flex; align-items: center; gap: 8px; }
+  #charCountDisplay { margin-left: 10px; font-size: 0.9em; color: #555; white-space: nowrap; }
+  
   #result {
-  flex: 1 1 auto;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  resize: vertical;
-  min-height: 600px; /* Added this line to increase default vertical size */
-}
+    flex: 1 1 auto; width: 100%; max-width: 100%; box-sizing: border-box;
+    resize: vertical; min-height: 550px; padding: 8px;
+    border: 1px solid #ccc; border-radius: 4px;
+  }
+  
+  /* --- CSS for excluded items in jsTree --- */
+  .jstree-anchor.excluded-item-style {
+    opacity: 0.6;
+    font-style: italic !important; /* Make sure italic style applies */
+  }
+
+  /* Target the checkbox icon (<i> tag) itself when it's part of an excluded item's anchor 
+     AND has the jstree-checkbox-disabled class (applied by disable_checkbox()).
+     This selector is quite specific. */
+  .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checkbox-disabled {
+    opacity: 0.4 !important; /* Further fade the checkbox background/border */
+  }
+
+  /* This is the crucial part: Force the icon part (::before pseudo-element for font icons,
+     or the background for sprite themes) to look UNCHECKED.
+     The default theme uses a sprite and background-position.
+     -4px -4px is for the UNCHECKED state in the 32px default theme sprite.
+     Adjust if your theme or sprite size is different.
+  */
+  .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checkbox-disabled::before,
+  .jstree-anchor.excluded-item-style.jstree-clicked > i.jstree-checkbox::before, /* If parent cascade adds jstree-clicked to anchor */
+  .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-clicked::before { /* If cascade adds jstree-clicked to checkbox <i> */
+    background-position: -4px -4px !important; /* Force UNCHECKED sprite position */
+    /* If your theme uses `content` for checkbox icons (font icons): */
+    /* content: "\f00c" !important; /* Replace with your theme's UNCHECKED icon code and adjust */
+    /* For FontAwesome, an unchecked box might be a specific class or content:'\f096' */
+    /* For now, background-position is for default theme */
+  }
+  /* If the theme also changes classes on the <i> tag directly for checked state (e.g. adds .jstree-checked to <i>): */
+   .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checked.jstree-checkbox-disabled::before {
+      background-position: -4px -4px !important; /* Still force UNCHECKED */
+   }
 
 
-  /* ---------- small screens ---------- */
-  @media (max-width: 800px){
+  @media (max-width: 900px){
     #main { flex-direction:column; }
+    #toolbar input[type="text"] { width: 100%; margin-bottom: 8px; }
+    #toolbar { flex-direction: column; align-items: stretch; }
+    #toolbar select, #toolbar button { width: 100%; margin-bottom: 8px; margin-right: 0; }
   }
 </style>
 </head>
 <body>
-
-  <!-- ──────── toolbar ──────── -->
   <div id="toolbar">
-    <input id="rootPath" type="text" placeholder="Enter path and hit “Load Path”">
-    <button id="btnLoadPath">Load Path</button> |
-
+    <input id="rootPath" type="text" placeholder="Enter path and hit “Load Path”" value="{{ initial_path }}">
+    <button id="btnLoadPath">Load Path</button>
+    <span>|</span>
     <select id="presetList"></select>
-    <button id="btnLoadPreset">Load</button>
-    <button id="btnDeletePreset">🗑️</button>
-    <button id="btnSavePreset">💾 Save as…</button>
+    <button id="btnLoadPreset">Load Sel.</button>
+    <button id="btnDeletePreset" title="Delete selected selection preset">🗑️ Sel.</button>
+    <button id="btnSavePreset" title="Save current selection as new preset">💾 Sel. As…</button>
   </div>
 
-  <!-- ──────── main two-pane area ──────── -->
   <div id="main">
-
-    <!-- left : tree -->
     <div id="treeSection">
       <h2>Pick files</h2>
-      <div id="tree"></div>
+      <div id="tree">Loading tree...</div>
     </div>
-
-    <!-- right : buttons + textarea -->
     <div id="outputSection">
       <div id="outputButtons">
         <button id="btnGenerate">Generate TXT</button>
         <button id="btnCopy">Copy to clipboard</button>
+        <span id="charCountDisplay"></span>
       </div>
       <textarea id="result" rows="25"
                 placeholder="Generated text will appear here…"></textarea>
     </div>
-
   </div>
 
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>

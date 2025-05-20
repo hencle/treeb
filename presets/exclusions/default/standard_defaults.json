@@ -1,0 +1,39 @@
+{
+  "description": "Standard sensible defaults for most projects.",
+  "dirs": [
+    ".git",
+    ".venv",
+    "venv",
+    ".env",
+    "env",
+    "node_modules",
+    ".next",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    "build",
+    "dist",
+    "target",
+    "out",
+    "site",
+    ".vscode",
+    ".idea"
+  ],
+  "files": [
+    ".DS_Store",
+    "Thumbs.db",
+    ".env"
+  ],
+  "patterns": [
+    "*.pyc",
+    "*.pyo",
+    "*.swp",
+    "*.swo",
+    "*.swn",
+    "*.log",
+    "*.tmp",
+    "*.temp",
+    "*ignore",
+    "*.lock"
+  ]
+}

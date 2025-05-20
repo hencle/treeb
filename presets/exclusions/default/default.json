@@ -1,0 +1,6 @@
+{
+    "description": "Standard exclusions for web development.",
+    "exclude_dirs": [".git", ".vscode", "node_modules", ".venv"],
+    "exclude_files": [".env", ".DS_Store"],
+    "exclude_patterns": ["*.log", "*.tmp", "*ignore"]
+}
