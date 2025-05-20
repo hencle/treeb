@@ -33,7 +33,6 @@
     "*.log",
     "*.tmp",
     "*.temp",
-    "*ignore",
     "*.lock"
   ]
 }
