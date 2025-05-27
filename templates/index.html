@@ -9,101 +9,169 @@
 <script src="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/jstree.min.js"></script>
 
 <style>
+  :root {
+    --bg-primary: #1e1e1e; 
+    --bg-secondary: #2d2d2d; 
+    --bg-tertiary: #3c3c3c; 
+    --bg-hover: #3a3a3a; 
+
+    --text-primary: #e0e0e0; 
+    --text-secondary: #a0a0a0; 
+    --text-on-accent: #ffffff; 
+    --text-placeholder: #777;
+
+    --border-primary: #454545; 
+    --border-secondary: #555555; 
+
+    --accent-primary: #007bff; 
+    --accent-primary-hover: #0056b3;
+
+    --button-bg: #4a4d52;
+    --button-text: var(--text-primary);
+    --button-hover-bg: #5e6268;
+    --button-border: #6c757d;
+    --button-disabled-bg: #3a3d40;
+    --button-disabled-text: #707070;
+    --button-disabled-border: #4a4d52;
+
+    --shadow-color: rgba(0, 0, 0, 0.2); 
+
+    --excluded-text-color: #888;
+    --error-text-color: #ff6b6b;
+    --warning-text-color: #ffa94d;
+    --success-text-color: #51cf66;
+  }
+
   html {
-    height: 100%; /* Allow body to use 100% viewport height */
+    height: 100%;
   }
   body {
-    min-height: 100%; /* Ensure body takes at least full viewport height */
-    margin: 0; /* Remove default browser margin */
-    display: flex; /* Use flexbox for overall page layout */
-    flex-direction: column; /* Stack toolbar and content vertically */
+    min-height: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-    background-color: #f0f0f0; /* Light grey background for the page */
-    color: #212529;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     font-size: 14px;
   }
 
-  #app-container { /* New wrapper for toolbar and main content area */
+  #app-container {
     display: flex;
     flex-direction: column;
-    flex-grow: 1; /* Allow this container to fill the body */
-    padding: 1.5rem; /* Re-apply page padding here */
+    flex-grow: 1;
+    padding: 1.5rem;
     box-sizing: border-box;
-    overflow: hidden; /* Prevent this container from causing page scroll */
+    overflow: hidden;
   }
 
   #toolbar {
     margin-bottom: 1rem;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: 1px solid var(--border-primary);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    flex-shrink: 0; /* Toolbar should not shrink */
+    flex-shrink: 0;
   }
-  #toolbar input[type="text"] { flex-grow: 1; min-width: 200px; padding: 8px 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 1em; }
-  #toolbar select { padding: 8px 10px; border: 1px solid #ced4da; border-radius: 4px; background-color: #fff; font-size: 1em; }
+  #toolbar input[type="text"],
+  #toolbar select {
+    flex-grow: 1;
+    min-width: 200px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    font-size: 1em;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+  }
+  #toolbar input[type="text"]::placeholder {
+    color: var(--text-placeholder);
+  }
+  #toolbar select {
+  }
   #toolbar button {
     padding: 8px 12px;
-    border: 1px solid #6c757d;
+    border: 1px solid var(--button-border);
     border-radius: 4px;
-    background-color: #6c757d;
-    color: white;
+    background-color: var(--button-bg);
+    color: var(--button-text);
     cursor: pointer;
     font-size: 1em;
     transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
   }
-  #toolbar button:hover { background-color: #5a6268; border-color: #545b62; }
-  #toolbar button:disabled { background-color: #adb5bd; border-color: #adb5bd; cursor: not-allowed; opacity: 0.65; }
-  #toolbar span.separator { color: #ced4da; margin: 0 8px; }
+  #toolbar button:hover {
+    background-color: var(--button-hover-bg);
+    border-color: var(--button-hover-bg);
+  }
+  #toolbar button:disabled {
+    background-color: var(--button-disabled-bg);
+    border-color: var(--button-disabled-border);
+    color: var(--button-disabled-text);
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  #toolbar span.separator {
+    color: var(--border-primary);
+    margin: 0 8px;
+  }
 
   #main {
     display: flex;
-    gap: 1rem; /* Adjusted gap slightly */
-    align-items: stretch; /* Make direct children (treeSection, outputSection) stretch vertically */
-    flex-grow: 1; /* Main area takes remaining space after toolbar */
-    overflow: hidden; /* Prevent #main itself from scrolling; children will scroll */
-    width: 100%; /* Ensure it uses full width of app-container */
+    gap: 1rem;
+    align-items: stretch; 
+    flex-grow: 1;
+    overflow: hidden;
+    width: 100%;
   }
 
-  .content-box { /* Common styling for treeSection and outputSection */
-    background-color: #fff;
+  .content-box { 
+    background-color: var(--bg-secondary);
     padding: 1rem;
     border-radius: 5px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.05);
-    display: flex; /* Will be flex containers */
-    flex-direction: column; /* Children stack vertically */
-    overflow: hidden; /* Manage overflow within the box */
+    border: 1px solid var(--border-primary);
+    display: flex; 
+    flex-direction: column; 
+    overflow: hidden; 
+    box-sizing: border-box; /* <<< --- ADDED THIS IMPORTANT LINE --- >>> */
   }
 
   #treeSection {
-    flex: 1 1 350px; /* Adjusted flex-basis slightly */
+    flex: 1 1 350px; 
     min-width: 300px;
-    /* overflow: hidden; is now on .content-box */
   }
-  #treeSection h2, #outputSection h2 { margin-top: 0; color: #343a40; font-weight: 500; margin-bottom: 0.75rem;}
-  #tree { /* This div will contain the jstree and will scroll if tree is too tall */
+  #treeSection h2, #outputSection h2 {
+    margin-top: 0;
+    color: var(--text-primary);
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+  }
+  #tree { 
     flex-grow: 1;
     overflow-y: auto;
-    border: 1px solid #e9ecef;
+    border: 1px solid var(--border-primary); /* Changed from e9ecef */
     border-radius: 3px;
     padding: 5px;
+    background-color: var(--bg-secondary); 
   }
 
 
   #outputSection {
-    flex: 2 1 500px;
-    /* overflow: hidden; is now on .content-box */
+    /* flex: 2 1 500px;  <<< --- CHANGED FROM THIS --- >>> */
+    flex: 1 1 500px; /* <<< --- TO THIS (equal grow, larger basis) --- >>> */
+                    /* To give it even more horizontal space relative to treeSection,
+                       you could use flex-grow: 1.5 or flex-grow: 2 if this isn't enough,
+                       or reduce treeSection's flex-grow or flex-basis */
   }
 
-  #outputHeader { /* Wrapper for H2, buttons, charCountDisplay in output section */
+  #outputHeader { 
     display: flex;
-    flex-direction: column; /* Stack H2 above buttons/charcount */
-    flex-shrink: 0; /* Header takes its content height */
+    flex-direction: column; 
+    flex-shrink: 0; 
     margin-bottom: 0.5rem;
   }
-  #outputHeaderTopRow { /* For H2 and buttons on one line */
+  #outputHeaderTopRow { 
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -113,62 +181,124 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    /* flex-shrink: 0; Not needed here, part of outputHeader */
   }
   #charCountDisplay {
     font-size: 0.9em;
-    color: #495057;
+    color: var(--text-secondary);
     white-space: nowrap;
-    background-color: #e9ecef;
+    background-color: var(--bg-tertiary);
     padding: 5px 10px;
     border-radius: 4px;
-    text-align: right; /* Align text to right if it shares line */
+    text-align: right;
     flex-shrink: 0;
-    margin-top: 0.25rem; /* Space if H2 is above */
+    margin-top: 0.25rem;
+    border: 1px solid var(--border-primary);
   }
 
 
-  #result {
-    flex-grow: 1; /* CRITICAL: Textarea takes all remaining vertical space in #outputSection */
+  #result { /* Textarea */
+    flex-grow: 1; 
     width: 100%;
     box-sizing: border-box;
-    resize: vertical; /* Allow user to resize further if they wish */
-    min-height: 150px; /* A smaller min-height, it will grow with flex */
-    border: 1px solid #ced4da;
+    resize: vertical; 
+    min-height: 150px; 
+    border: 1px solid var(--border-primary);
     border-radius: 4px;
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
     font-size: 0.9em;
     line-height: 1.5;
     padding: 10px;
+    background-color: var(--input-bg, var(--bg-secondary)); 
+    color: var(--text-primary);
+  }
+  #result::placeholder {
+    color: var(--text-placeholder);
   }
 
-  /* jsTree Excluded Item Styles (as before) */
-  .jstree-anchor.excluded-item-style { opacity: 0.6; font-style: italic !important; color: #6c757d !important; }
-  .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checkbox-disabled { opacity: 0.4 !important; }
+
+  /* --- jsTree Dark Theme Overrides --- */
+  .jstree-default .jstree-node,
+  .jstree-default .jstree-anchor {
+    color: var(--text-primary); 
+  }
+  .jstree-default .jstree-hovered {
+    background-color: var(--bg-hover) !important; 
+    color: var(--text-primary) !important;
+    box-shadow: none !important;
+    border-radius:3px;
+  }
+  .jstree-default .jstree-clicked {
+    background-color: var(--accent-primary) !important;
+    color: var(--text-on-accent) !important;
+    box-shadow: none !important;
+    border-radius:3px;
+  }
+  
+  .jstree-anchor.excluded-item-style {
+    opacity: 0.7; 
+    font-style: italic !important;
+    color: var(--excluded-text-color) !important;
+  }
+  .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checkbox-disabled {
+    opacity: 0.5 !important;
+  }
   .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checkbox-disabled::before,
   .jstree-anchor.excluded-item-style.jstree-clicked > i.jstree-checkbox::before,
   .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-clicked::before { background-position: -4px -4px !important; }
   .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checked.jstree-checkbox-disabled::before { background-position: -4px -4px !important; }
-  .jstree-default .jstree-clicked { background-color: #007bff; color: white; box-shadow: none; border-radius:3px; }
-  .jstree-default .jstree-hovered { background-color: #e9ecef; box-shadow: none; border-radius:3px; }
+
+  ::selection {
+    background-color: var(--accent-primary);
+    color: var(--text-on-accent);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 5px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #555; 
+    border-radius: 5px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #777;
+  }
+  #tree, #result {
+      scrollbar-color: #555 var(--bg-secondary); 
+      scrollbar-width: thin;
+  }
 
 
-  @media (max-width: 900px){ /* Mobile responsiveness adjustments */
+  .text-error { color: var(--error-text-color); }
+  .text-warning { color: var(--warning-text-color); }
+  .text-success { color: var(--success-text-color); }
+  p[style*="color:red"] { color: var(--error-text-color) !important; } 
+  p[style*="color:orange"] { color: var(--warning-text-color) !important; } 
+  i { 
+    color: var(--text-secondary);
+  }
+
+
+  @media (max-width: 900px){ 
     #app-container {
-        padding: 0.75rem; /* Reduce padding on mobile */
+        padding: 0.75rem;
     }
     #main {
         flex-direction:column;
-        overflow-y: auto; /* Allow main to scroll if sections are too tall on mobile */
+        overflow-y: auto; 
         overflow-x: hidden;
     }
     #treeSection, #outputSection {
         width: 100%;
         margin-bottom: 1rem;
-        max-height: 60vh; /* Limit height on mobile to prevent excessive scrolling for one section */
+        max-height: 60vh; 
     }
     #result {
-        min-height: 300px; /* Ensure decent min height on mobile */
+        min-height: 300px; 
     }
     #toolbar input[type="text"] { width: calc(100% - 22px); margin-bottom: 8px; }
     #toolbar { flex-direction: column; align-items: stretch; }
@@ -199,7 +329,7 @@
     <div id="main">
       <div id="treeSection" class="content-box">
         <h2>Pick Files & Directories</h2>
-        <div id="tree">Loading tree...</div>
+        <div id="tree"><i>Loading tree...</i></div> 
       </div>
       <div id="outputSection" class="content-box">
           <div id="outputHeader">
