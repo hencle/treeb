@@ -97,7 +97,7 @@ try:
     app.logger.info(f"Successfully loaded tiktoken encoding: {TIKTOKEN_ENCODING_NAME}")
 except Exception as e:
     app.logger.error(f"Could not load tiktoken encoding '{TIKTOKEN_ENCODING_NAME}': {e}.")
-MODEL_CONTEXT_INFO = [{"id": "gpt4o", "displayName": "4o", "window": 128000}, {"id": "claude3o", "displayName": "o3", "window": 200000}, {"id": "geminiX", "displayName": "GmP", "window": 1000000}, {"id": "grokX", "displayName": "Grk3", "window": 1000000}]
+MODEL_CONTEXT_INFO = [{"id": "gpt4o", "displayName": "4o", "window": 128000}, {"id": "claude3o", "displayName": "o3", "window": 200000}, {"id": "geminiX", "displayName": "gemini-pro", "window": 1000000}, {"id": "grokX", "displayName": "grok3", "window": 1000000}]
 # ------------------------------------------------------------------
 
 # ------------------------------------------------------------------ HELPER FUNCTIONS

@@ -310,7 +310,7 @@ $(function () {
           if (data.token_count !== undefined && data.token_count >= 0) {
               tokenInfoHtml = `<strong>${data.token_count}</strong> tokens`;
               if (data.model_percentages && data.model_percentages.length > 0) {
-                  tokenInfoHtml += " / ";
+                  tokenInfoHtml += " || ";
                   const percentagesHtmlParts = data.model_percentages.map(m => {
                       if (m.name === "LLMs" && m.percentage === "N/A (Tokenization Error)") { 
                            return `${m.name}: <span style="color: red; font-weight: normal;">${m.percentage}</span>`;
@@ -333,7 +333,7 @@ $(function () {
                           if (displayPercStr.endsWith(".0")) { displayPercStr = displayPercStr.slice(0, -2); } 
                       }
                       return `${m.name}: <span style="color: ${color}; font-weight: normal;">${displayPercStr}%</span>`;
-                  }).join(", ");
+                  }).join(" |  ");
                   tokenInfoHtml += percentagesHtmlParts;
               }
           } else if (data.token_count === -1) { 
