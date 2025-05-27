@@ -537,4 +537,4 @@ if __name__ == "__main__":
             app.logger.info(f"Default selection preset '{preset_name}' not created as no verified paths were provided.")
 
     create_default_selection_preset("default", []) 
-    app.run(debug=True, port=5005)
+    app.run(debug=True, port=5000)
