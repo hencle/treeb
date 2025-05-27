@@ -1,12 +1,13 @@
-Okay, I'll update the README with the new information, keeping it concise.
-
------
-
-## README.md (Updated)
 
 # treeb
 
 Flatten repos by selection and feed it into llms
+
+![treeb User Interface](treeb-ui-screenshot.png)
+
+`treeb` provides a web UI to visually select files and directories, then generates a combined text output including an ASCII tree and file contents. It's designed for preparing context for Large Language Models.
+
+## Key Features
 
 `treeb` provides a web UI to visually select files and directories, then generates a combined text output including an ASCII tree and file contents. It's designed for preparing context for Large Language Models.
 
