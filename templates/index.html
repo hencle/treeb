@@ -9,7 +9,29 @@
 <script src="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/jstree.min.js"></script>
 
 <style>
-  body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif; margin: 1.5rem; font-size: 14px; background-color: #f8f9fa; color: #212529; }
+  html {
+    height: 100%; /* Allow body to use 100% viewport height */
+  }
+  body {
+    min-height: 100%; /* Ensure body takes at least full viewport height */
+    margin: 0; /* Remove default browser margin */
+    display: flex; /* Use flexbox for overall page layout */
+    flex-direction: column; /* Stack toolbar and content vertically */
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    background-color: #f0f0f0; /* Light grey background for the page */
+    color: #212529;
+    font-size: 14px;
+  }
+
+  #app-container { /* New wrapper for toolbar and main content area */
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Allow this container to fill the body */
+    padding: 1.5rem; /* Re-apply page padding here */
+    box-sizing: border-box;
+    overflow: hidden; /* Prevent this container from causing page scroll */
+  }
+
   #toolbar {
     margin-bottom: 1rem;
     padding-bottom: 0.75rem;
@@ -17,13 +39,14 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px; 
+    gap: 8px;
+    flex-shrink: 0; /* Toolbar should not shrink */
   }
   #toolbar input[type="text"] { flex-grow: 1; min-width: 200px; padding: 8px 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 1em; }
   #toolbar select { padding: 8px 10px; border: 1px solid #ced4da; border-radius: 4px; background-color: #fff; font-size: 1em; }
   #toolbar button {
-    padding: 8px 12px; 
-    border: 1px solid #6c757d; 
+    padding: 8px 12px;
+    border: 1px solid #6c757d;
     border-radius: 4px;
     background-color: #6c757d;
     color: white;
@@ -32,89 +55,166 @@
     transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
   }
   #toolbar button:hover { background-color: #5a6268; border-color: #545b62; }
-  #toolbar button:disabled { background-color: #adb5bd; border-color: #adb5bd; cursor: not-allowed; opacity: 0.65; } /* Added opacity for disabled */
-  #toolbar span.separator { color: #ced4da; margin: 0 8px; } 
+  #toolbar button:disabled { background-color: #adb5bd; border-color: #adb5bd; cursor: not-allowed; opacity: 0.65; }
+  #toolbar span.separator { color: #ced4da; margin: 0 8px; }
+
+  #main {
+    display: flex;
+    gap: 1rem; /* Adjusted gap slightly */
+    align-items: stretch; /* Make direct children (treeSection, outputSection) stretch vertically */
+    flex-grow: 1; /* Main area takes remaining space after toolbar */
+    overflow: hidden; /* Prevent #main itself from scrolling; children will scroll */
+    width: 100%; /* Ensure it uses full width of app-container */
+  }
+
+  .content-box { /* Common styling for treeSection and outputSection */
+    background-color: #fff;
+    padding: 1rem;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    display: flex; /* Will be flex containers */
+    flex-direction: column; /* Children stack vertically */
+    overflow: hidden; /* Manage overflow within the box */
+  }
+
+  #treeSection {
+    flex: 1 1 350px; /* Adjusted flex-basis slightly */
+    min-width: 300px;
+    /* overflow: hidden; is now on .content-box */
+  }
+  #treeSection h2, #outputSection h2 { margin-top: 0; color: #343a40; font-weight: 500; margin-bottom: 0.75rem;}
+  #tree { /* This div will contain the jstree and will scroll if tree is too tall */
+    flex-grow: 1;
+    overflow-y: auto;
+    border: 1px solid #e9ecef;
+    border-radius: 3px;
+    padding: 5px;
+  }
 
 
-  #main { display:flex; gap:2rem; align-items:flex-start; margin-top: 1rem;}
-  #treeSection { flex:1 1 380px; min-width:300px; background-color: #fff; padding:1rem; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
-  #outputSection { flex:2 1 500px; display:flex; flex-direction:column; background-color: #fff; padding:1rem; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+  #outputSection {
+    flex: 2 1 500px;
+    /* overflow: hidden; is now on .content-box */
+  }
 
-  #treeSection h2, #outputSection h2 { margin-top: 0; color: #343a40; font-weight: 500; }
+  #outputHeader { /* Wrapper for H2, buttons, charCountDisplay in output section */
+    display: flex;
+    flex-direction: column; /* Stack H2 above buttons/charcount */
+    flex-shrink: 0; /* Header takes its content height */
+    margin-bottom: 0.5rem;
+  }
+  #outputHeaderTopRow { /* For H2 and buttons on one line */
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+  }
+  #outputButtons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* flex-shrink: 0; Not needed here, part of outputHeader */
+  }
+  #charCountDisplay {
+    font-size: 0.9em;
+    color: #495057;
+    white-space: nowrap;
+    background-color: #e9ecef;
+    padding: 5px 10px;
+    border-radius: 4px;
+    text-align: right; /* Align text to right if it shares line */
+    flex-shrink: 0;
+    margin-top: 0.25rem; /* Space if H2 is above */
+  }
 
-  #outputButtons { margin-bottom:.5rem; display: flex; align-items: center; gap: 8px; }
-  #charCountDisplay { margin-left: 10px; font-size: 0.9em; color: #495057; white-space: nowrap; background-color: #e9ecef; padding: 5px 10px; border-radius: 4px;}
 
   #result {
-    flex: 1 1 auto; width: 100%; max-width: 100%; box-sizing: border-box;
-    resize: vertical; min-height: 500px; padding: 10px;
-    border: 1px solid #ced4da; border-radius: 4px;
+    flex-grow: 1; /* CRITICAL: Textarea takes all remaining vertical space in #outputSection */
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical; /* Allow user to resize further if they wish */
+    min-height: 150px; /* A smaller min-height, it will grow with flex */
+    border: 1px solid #ced4da;
+    border-radius: 4px;
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
     font-size: 0.9em;
     line-height: 1.5;
+    padding: 10px;
   }
 
-  .jstree-anchor.excluded-item-style {
-    opacity: 0.6;
-    font-style: italic !important;
-    color: #6c757d !important; 
-  }
-  .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checkbox-disabled {
-    opacity: 0.4 !important; 
-  }
+  /* jsTree Excluded Item Styles (as before) */
+  .jstree-anchor.excluded-item-style { opacity: 0.6; font-style: italic !important; color: #6c757d !important; }
+  .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checkbox-disabled { opacity: 0.4 !important; }
   .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checkbox-disabled::before,
-  .jstree-anchor.excluded-item-style.jstree-clicked > i.jstree-checkbox::before, 
-  .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-clicked::before { 
-    background-position: -4px -4px !important; 
-  }
-    .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checked.jstree-checkbox-disabled::before {
-      background-position: -4px -4px !important; 
-    }
+  .jstree-anchor.excluded-item-style.jstree-clicked > i.jstree-checkbox::before,
+  .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-clicked::before { background-position: -4px -4px !important; }
+  .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checked.jstree-checkbox-disabled::before { background-position: -4px -4px !important; }
   .jstree-default .jstree-clicked { background-color: #007bff; color: white; box-shadow: none; border-radius:3px; }
   .jstree-default .jstree-hovered { background-color: #e9ecef; box-shadow: none; border-radius:3px; }
 
 
-  @media (max-width: 900px){
-    #main { flex-direction:column; }
-    #treeSection, #outputSection { width: 100%; margin-bottom: 1rem;}
-    #toolbar input[type="text"] { width: calc(100% - 22px); margin-bottom: 8px; } 
+  @media (max-width: 900px){ /* Mobile responsiveness adjustments */
+    #app-container {
+        padding: 0.75rem; /* Reduce padding on mobile */
+    }
+    #main {
+        flex-direction:column;
+        overflow-y: auto; /* Allow main to scroll if sections are too tall on mobile */
+        overflow-x: hidden;
+    }
+    #treeSection, #outputSection {
+        width: 100%;
+        margin-bottom: 1rem;
+        max-height: 60vh; /* Limit height on mobile to prevent excessive scrolling for one section */
+    }
+    #result {
+        min-height: 300px; /* Ensure decent min height on mobile */
+    }
+    #toolbar input[type="text"] { width: calc(100% - 22px); margin-bottom: 8px; }
     #toolbar { flex-direction: column; align-items: stretch; }
     #toolbar select, #toolbar button { width: 100%; margin-bottom: 8px; margin-right: 0; }
     #toolbar span.separator { display: none; }
+    #outputHeaderTopRow { flex-direction: column; align-items: flex-start; gap: 0.5rem;}
+    #outputButtons { width: 100%; justify-content: flex-end;}
   }
 </style>
 </head>
 <body>
-  <div id="toolbar">
-    <input id="rootPath" type="text" placeholder="Enter path to display" value="{{ initial_path }}">
-    {% if tkinter_available %}
-    <button id="btnBrowsePath" title="Browse for a folder using system dialog">Browse...</button>
-    {% else %}
-    <button id="btnBrowsePath" title="Directory browser unavailable: tkinter module missing or not working in Python environment. See console for details." disabled>Browse...</button>
-    {% endif %}
-    <button id="btnLoadPath">Load Path</button>
-    <span class="separator">|</span>
-    <select id="presetList"></select>
-    <button id="btnLoadPreset" title="Load selected preset">Load Sel.</button>
-    <button id="btnDeletePreset" title="Delete selected user preset">🗑️ Del Sel.</button>
-    <button id="btnSavePreset" title="Save current selection as new user preset">💾 Save Sel.</button>
-  </div>
-
-  <div id="main">
-    <div id="treeSection">
-      <h2>Pick Files & Directories</h2>
-      <div id="tree">Loading tree...</div>
+  <div id="app-container">
+    <div id="toolbar">
+      <input id="rootPath" type="text" placeholder="Enter path to display" value="{{ initial_path }}">
+      {% if tkinter_available %}
+      <button id="btnBrowsePath" title="Browse for a folder using system dialog">Browse...</button>
+      {% else %}
+      <button id="btnBrowsePath" title="Directory browser unavailable: tkinter module missing or not working in Python environment. See console for details." disabled>Browse...</button>
+      {% endif %}
+      <button id="btnLoadPath">Load Path</button>
+      <span class="separator">|</span>
+      <select id="presetList"></select>
+      <button id="btnLoadPreset" title="Load selected preset">Load Sel.</button>
+      <button id="btnDeletePreset" title="Delete selected user preset">🗑️ Del Sel.</button>
+      <button id="btnSavePreset" title="Save current selection as new user preset">💾 Save Sel.</button>
     </div>
-    <div id="outputSection">
-        <div id="outputButtons">
-            <h2>Generated Output</h2>
-            <span style="flex-grow:1;"></span> 
-            <button id="btnGenerate">Generate TXT</button>
-            <button id="btnCopy">Copy Output</button>
-        </div>
-        <span id="charCountDisplay">Select items and generate to see token count.</span>
-        <textarea id="result" rows="25"
-                  placeholder="Generated text structure and file contents will appear here after clicking 'Generate TXT'."></textarea>
+
+    <div id="main">
+      <div id="treeSection" class="content-box">
+        <h2>Pick Files & Directories</h2>
+        <div id="tree">Loading tree...</div>
+      </div>
+      <div id="outputSection" class="content-box">
+          <div id="outputHeader">
+            <div id="outputHeaderTopRow">
+                <h2>Generated Output</h2>
+                <div id="outputButtons">
+                    <button id="btnGenerate">Generate TXT</button>
+                    <button id="btnCopy">Copy Output</button>
+                </div>
+            </div>
+            <span id="charCountDisplay">Select items and generate to see token count.</span>
+          </div>
+          <textarea id="result"
+                    placeholder="Generated text structure and file contents will appear here after clicking 'Generate TXT'."></textarea>
+      </div>
     </div>
   </div>
 
