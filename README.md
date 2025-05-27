@@ -9,10 +9,6 @@ Flatten repos by selection and feed it into llms
 
 ## Key Features
 
-`treeb` provides a web UI to visually select files and directories, then generates a combined text output including an ASCII tree and file contents. It's designed for preparing context for Large Language Models.
-
-## Key Features
-
   * **Visual File/Directory Selection**: Interactive tree view to pick your context.
       * **Lazy Loading**: For improved performance with large repositories and on constrained hardware (like a Raspberry Pi), directory contents are loaded on-demand as you expand them in the tree. File contents are only read when generating the final output.
   * **Combined Text Output**: Generates an ASCII tree of the selected structure plus the content of selected files.
