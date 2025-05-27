@@ -2,97 +2,119 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>File picker</title>
+<title>treeb - File Picker & Flattener</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/themes/default/style.min.css">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/jstree.min.js"></script>
 
 <style>
-  body { font-family: system-ui, sans-serif; margin: 1.5rem; font-size: 14px; }
-  #toolbar { 
-    margin-bottom: 1rem; 
-    padding-bottom: 0.75rem; 
-    border-bottom: 1px solid #e0e0e0; 
+  body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif; margin: 1.5rem; font-size: 14px; background-color: #f8f9fa; color: #212529; }
+  #toolbar {
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #dee2e6;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: 8px; 
   }
-  #toolbar input[type="text"] { width: 25rem; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
-  #toolbar select { padding: 6px; border: 1px solid #ccc; border-radius: 4px; margin-right: 5px;}
-  #toolbar button { 
-    padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; 
-    background-color: #f0f0f0; cursor: pointer; margin-right: 5px;
+  #toolbar input[type="text"] { flex-grow: 1; min-width: 200px; padding: 8px 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 1em; }
+  #toolbar select { padding: 8px 10px; border: 1px solid #ced4da; border-radius: 4px; background-color: #fff; font-size: 1em; }
+  #toolbar button {
+    padding: 8px 12px; 
+    border: 1px solid #6c757d; 
+    border-radius: 4px;
+    background-color: #6c757d;
+    color: white;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
   }
-  #toolbar button:hover { background-color: #e0e0e0; }
+  #toolbar button:hover { background-color: #5a6268; border-color: #545b62; }
+  #toolbar button:disabled { background-color: #adb5bd; border-color: #adb5bd; cursor: not-allowed; opacity: 0.65; } /* Added opacity for disabled */
+  #toolbar span.separator { color: #ced4da; margin: 0 8px; } 
+
 
   #main { display:flex; gap:2rem; align-items:flex-start; margin-top: 1rem;}
-  #treeSection { flex:1 1 350px; min-width:280px; }
-  #outputSection { flex:1 1 450px; display:flex; flex-direction:column; }
-  
+  #treeSection { flex:1 1 380px; min-width:300px; background-color: #fff; padding:1rem; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+  #outputSection { flex:2 1 500px; display:flex; flex-direction:column; background-color: #fff; padding:1rem; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+
+  #treeSection h2, #outputSection h2 { margin-top: 0; color: #343a40; font-weight: 500; }
+
   #outputButtons { margin-bottom:.5rem; display: flex; align-items: center; gap: 8px; }
-  #charCountDisplay { margin-left: 10px; font-size: 0.9em; color: #555; white-space: nowrap; }
-  
+  #charCountDisplay { margin-left: 10px; font-size: 0.9em; color: #495057; white-space: nowrap; background-color: #e9ecef; padding: 5px 10px; border-radius: 4px;}
+
   #result {
     flex: 1 1 auto; width: 100%; max-width: 100%; box-sizing: border-box;
-    resize: vertical; min-height: 550px; padding: 8px;
-    border: 1px solid #ccc; border-radius: 4px;
+    resize: vertical; min-height: 500px; padding: 10px;
+    border: 1px solid #ced4da; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 0.9em;
+    line-height: 1.5;
   }
-  
-  /* CSS for excluded items in jsTree */
+
   .jstree-anchor.excluded-item-style {
     opacity: 0.6;
-    font-style: italic !important; 
+    font-style: italic !important;
+    color: #6c757d !important; 
   }
-  /* Style for the checkbox of an excluded item when it's disabled by disable_checkbox() */
   .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checkbox-disabled {
-    opacity: 0.4 !important; /* Further fade the checkbox background/border */
+    opacity: 0.4 !important; 
   }
-  /* Force the icon part to look UNCHECKED for excluded items */
   .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checkbox-disabled::before,
-  .jstree-anchor.excluded-item-style.jstree-clicked > i.jstree-checkbox::before, /* If parent cascade adds jstree-clicked to anchor */
-  .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-clicked::before { /* If cascade adds jstree-clicked to checkbox <i> */
-    background-position: -4px -4px !important; /* Default theme UNCHECKED sprite (32px) */
-                                             /* For 40px sprite: -5px -5px */
+  .jstree-anchor.excluded-item-style.jstree-clicked > i.jstree-checkbox::before, 
+  .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-clicked::before { 
+    background-position: -4px -4px !important; 
   }
-   /* If the theme also changes classes on the <i> tag directly for checked state */
-   .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checked.jstree-checkbox-disabled::before {
-      background-position: -4px -4px !important; /* Still force UNCHECKED */
-   }
+    .jstree-anchor.excluded-item-style > i.jstree-checkbox.jstree-checked.jstree-checkbox-disabled::before {
+      background-position: -4px -4px !important; 
+    }
+  .jstree-default .jstree-clicked { background-color: #007bff; color: white; box-shadow: none; border-radius:3px; }
+  .jstree-default .jstree-hovered { background-color: #e9ecef; box-shadow: none; border-radius:3px; }
+
 
   @media (max-width: 900px){
     #main { flex-direction:column; }
-    #toolbar input[type="text"] { width: 100%; margin-bottom: 8px; }
+    #treeSection, #outputSection { width: 100%; margin-bottom: 1rem;}
+    #toolbar input[type="text"] { width: calc(100% - 22px); margin-bottom: 8px; } 
     #toolbar { flex-direction: column; align-items: stretch; }
     #toolbar select, #toolbar button { width: 100%; margin-bottom: 8px; margin-right: 0; }
+    #toolbar span.separator { display: none; }
   }
 </style>
 </head>
 <body>
   <div id="toolbar">
-    <input id="rootPath" type="text" placeholder="Enter path and hit “Load Path”" value="{{ initial_path }}">
+    <input id="rootPath" type="text" placeholder="Enter path to display" value="{{ initial_path }}">
+    {% if tkinter_available %}
+    <button id="btnBrowsePath" title="Browse for a folder using system dialog">Browse...</button>
+    {% else %}
+    <button id="btnBrowsePath" title="Directory browser unavailable: tkinter module missing or not working in Python environment. See console for details." disabled>Browse...</button>
+    {% endif %}
     <button id="btnLoadPath">Load Path</button>
-    <span>|</span>
+    <span class="separator">|</span>
     <select id="presetList"></select>
-    <button id="btnLoadPreset">Load Sel.</button>
-    <button id="btnDeletePreset" title="Delete selected selection preset">🗑️ Sel.</button>
-    <button id="btnSavePreset" title="Save current selection as new preset">💾 Sel. As…</button>
+    <button id="btnLoadPreset" title="Load selected preset">Load Sel.</button>
+    <button id="btnDeletePreset" title="Delete selected user preset">🗑️ Del Sel.</button>
+    <button id="btnSavePreset" title="Save current selection as new user preset">💾 Save Sel.</button>
   </div>
 
   <div id="main">
     <div id="treeSection">
-      <h2>Pick files</h2>
+      <h2>Pick Files & Directories</h2>
       <div id="tree">Loading tree...</div>
     </div>
     <div id="outputSection">
-      <div id="outputButtons">
-        <button id="btnGenerate">Generate TXT</button>
-        <button id="btnCopy">Copy to clipboard</button>
-        <span id="charCountDisplay"></span>
-      </div>
-      <textarea id="result" rows="25"
-                placeholder="Generated text will appear here…"></textarea>
+        <div id="outputButtons">
+            <h2>Generated Output</h2>
+            <span style="flex-grow:1;"></span> 
+            <button id="btnGenerate">Generate TXT</button>
+            <button id="btnCopy">Copy Output</button>
+        </div>
+        <span id="charCountDisplay">Select items and generate to see token count.</span>
+        <textarea id="result" rows="25"
+                  placeholder="Generated text structure and file contents will appear here after clicking 'Generate TXT'."></textarea>
     </div>
   </div>
 
