@@ -32,3 +32,5 @@ run.bat
 
 After running, open `http://127.0.0.1:5000` in your browser. The scripts will attempt to set up a Python virtual environment and install dependencies (`Flask`, `tiktoken`). Python 3.7+ is required.
 
+## TODO 
+add lazy loading for big repos and constrained bandwith
