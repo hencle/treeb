@@ -33,6 +33,21 @@
     "*.log",
     "*.tmp",
     "*.temp",
-    "*.lock"
+    "*.lock",
+    "*.jpg",
+    "*.jpeg",
+    "*.png",
+    "*.gif",
+    "*.bmp",
+    "*.tiff",
+    "*.ico",
+    "*.mp4",
+    "*.mov",
+    "*.avi",
+    "*.mkv",
+    "*.flv",
+    "*.wmv",
+    "*.mpeg",
+    "*.mpg"
   ]
 }
