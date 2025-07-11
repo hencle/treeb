@@ -99,7 +99,14 @@ try:
     app.logger.info(f"Successfully loaded tiktoken encoding: {TIKTOKEN_ENCODING_NAME}")
 except Exception as e:
     app.logger.error(f"Could not load tiktoken encoding '{TIKTOKEN_ENCODING_NAME}': {e}.")
-MODEL_CONTEXT_INFO = [{"id": "gpt4o", "displayName": "4o", "window": 128000}, {"id": "claude3o", "displayName": "o3", "window": 200000}, {"id": "geminiX", "displayName": "gemini-pro", "window": 1000000}, {"id": "grokX", "displayName": "grok3", "window": 1000000}]
+MODEL_CONTEXT_INFO = [
+    {"id": "gpt4o", "displayName": "4o", "window": 128000},
+    {"id": "claude3o", "displayName": "o3", "window": 200000},
+    {"id": "gemini25pro", "displayName": "G2.5", "window": 1048576},
+    {"id": "grok3", "displayName": "G3", "window": 1000000},
+    {"id": "grok4", "displayName": "G4", "window": 256000},
+    {"id": "gpt41", "displayName": "4.1", "window": 32768},
+]
 # ------------------------------------------------------------------
 
 # ------------------------------------------------------------------ HELPER FUNCTIONS
@@ -410,7 +417,7 @@ def api_flatten():
 
         header = "code base:\n" + header_root_name_display + "\n".join(ascii_tree(subset)) + "\n\n"
 
-    body_parts = ["Content of selected files:\n"]
+    body_parts = ["Context files:\n"]
     if not final_files_to_process:
         body_parts.append("No files selected/accessible/found (after exclusion and directory expansion).\n")
     else:
