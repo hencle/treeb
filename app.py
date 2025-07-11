@@ -1,3 +1,4 @@
+# File: app.py
 # treeb/app.py
 
 from flask import Flask, render_template, request, jsonify
@@ -407,7 +408,7 @@ def api_flatten():
         else: # Should ideally not happen if common_ancestor_for_tree is set
             header_root_name_display = "Selected Structure/\n"
 
-        header = "```text\n" + header_root_name_display + "\n".join(ascii_tree(subset)) + "\n```\n\n"
+        header = "code base:\n" + header_root_name_display + "\n".join(ascii_tree(subset)) + "\n\n"
 
     body_parts = ["Content of selected files:\n"]
     if not final_files_to_process:
