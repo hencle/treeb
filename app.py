@@ -603,6 +603,6 @@ if __name__ == "__main__":
     # Example of creating another default preset if needed:
     # create_default_selection_preset("my_app_core_files", ["app.py", "static/js/main.js", "templates/index.html"])
 
-    # Use a different port if 5000 is in use, e.g. 5005
+    # Run the Flask app
     # Set host='0.0.0.0' to make it accessible from the network
-    app.run(debug=True, port=5005, host='0.0.0.0')
+    app.run(debug=True, port=5006, host='0.0.0.0')
