@@ -305,7 +305,37 @@ def api_tree():
             display_name = current_scan_path.name if current_scan_path.name else str(current_scan_path)
             error_node = {"id": str(current_scan_path), "text": f"{display_name} (Not Found or Not a Dir)", "type": "error", "icon": "jstree-warning", "children": False, "data": {"excluded_info": None}}
             return jsonify([error_node])
+
         root_node_obj = dir_to_js_lazy(current_scan_path)
+        root_node_obj["state"] = {"opened": True}
+
+        # Preload level 1 children
+        level1_nodes = []
+        try:
+            items = sorted(list(current_scan_path.iterdir()), key=lambda p: (not p.is_dir(), p.name.lower()))
+            for child_item in items:
+                child_node = dir_to_js_lazy(child_item)
+                if child_item.is_dir() and child_node["data"]["excluded_info"] is None:
+                    child_node["state"] = {"opened": True}
+                    # Preload level 2 children
+                    level2_nodes = []
+                    try:
+                        sub_items = sorted(list(child_item.iterdir()), key=lambda p: (not p.is_dir(), p.name.lower()))
+                        for sub_child_item in sub_items:
+                            sub_child_node = dir_to_js_lazy(sub_child_item)
+                            level2_nodes.append(sub_child_node)
+                    except PermissionError:
+                        app.logger.warning(f"Permission denied while listing level 2 children of {child_item}")
+                    except Exception as e:
+                        app.logger.error(f"Error listing level 2 children for {child_item}: {e}")
+                    child_node["children"] = level2_nodes
+                level1_nodes.append(child_node)
+        except PermissionError:
+            app.logger.warning(f"Permission denied while listing level 1 children of {current_scan_path}")
+        except Exception as e:
+            app.logger.error(f"Error listing level 1 children for {current_scan_path}: {e}")
+
+        root_node_obj["children"] = level1_nodes
         return jsonify([root_node_obj])
     else:
         try:
