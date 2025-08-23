@@ -49,32 +49,38 @@ for p_dir in [PRESET_BASE_DIR, SELECTION_PRESET_BASE_DIR, DEFAULT_SELECTION_PRES
 # --- Default Exclusion Data (Master Definition for system_defaults.json) ---
 class DefaultExclusionData:
     DIRS = [
+        # General
         ".git", ".venv", "venv", ".env", "env", "node_modules", ".next", "__pycache__", ".pytest_cache", ".mypy_cache",
         "build", "dist", "target", "out", "site", ".vscode", ".idea",
         # Flutter
-        ".dart_tool", "Pods", ".gradle", "DerivedData", ".pub-cache", ".pub", ".generated",
-        # Svelte (4 and 5, similar)
-        ".svelte-kit", "bower_components", ".grunt", ".nuxt", ".vuepress", ".docusaurus", ".serverless", ".vitepress", ".temp"
+        ".dart_tool", "Pods", ".gradle", "DerivedData", ".pub-cache", ".pub", ".generated", "bin", "gen", "proguard", "captures",
+        ".navigation", ".externalNativeBuild", "freeline", "cmake-build-debug", "cmake-build-release", "doc/api",
+        # Svelte (4 and 5)
+        ".svelte-kit", "bower_components", ".grunt", ".nuxt", ".vuepress", ".docusaurus", ".serverless", ".vitepress", ".temp", "coverage"
     ]
     FILES = [
+        # General
         ".DS_Store", "Thumbs.db", ".env",
         # Flutter
         ".flutter-plugins", ".flutter-plugins-dependencies", ".packages", "local.properties", "key.properties",
         "gradlew", "gradlew.bat", "GeneratedPluginRegistrant.java", "Generated.xcconfig", "app.flx", "app.zip",
-        "ServiceDefinitions.json",
-        # Svelte/Node
+        "ServiceDefinitions.json", "google-services.json", "freeline.py", "freeline_project_description.json",
+        "fastlane/report.xml", "fastlane/Preview.html", "fastlane/readme.md",
+        # Svelte (4 and 5)
         ".node_repl_history", ".yarn-integrity", ".eslintcache", ".stylelintcache", ".lock-wscript",
         ".yarn/build-state.yml", ".yarn/install-state.gz"
     ]
     PATTERNS = [
+        # General
         "*.pyc", "*.pyo", "*.swp", "*.swo", "*.swn", "*.log", "*.tmp", "*.temp", "*.lock",
         "*.jpg", "*.jpeg", "*.png", "*.gif", "*.bmp", "*.tiff", "*.ico",
         "*.mp4", "*.mov", "*.avi", "*.mkv", "*.flv", "*.wmv", "*.mpeg", "*.mpg",
         # Flutter
         "*.iml", "*.jks", "*.mode1v3", "*.mode2v3", "*.moved-aside", "*.pbxuser", "*.perspectivev3",
         "*sync*", "*.sconsign.dblite", "*.tags*", "Icon?", "GeneratedPluginRegistrant.*",
-        "vite.config.js.timestamp-*", "vite.config.ts.timestamp-*",
-        # Svelte/Node
+        "vite.config.js.timestamp-*", "vite.config.ts.timestamp-*", "*.apk", "*.ap_", "*.dex", "*.class", "*~",
+        ".fuse_hidden*", ".nfs*", "pubspec.lock",
+        # Svelte (4 and 5)
         "npm-debug.log*", "yarn-debug.log*", "yarn-error.log*", "lerna-debug.log*",
         "report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json", "*.pid", "*.seed", "*.pid.lock", "*.lcov", "*.tsbuildinfo", "*.tgz",
         ".env.*"
@@ -315,7 +321,7 @@ def api_tree():
             items = sorted(list(current_scan_path.iterdir()), key=lambda p: (not p.is_dir(), p.name.lower()))
             for child_item in items:
                 child_node = dir_to_js_lazy(child_item)
-                if child_item.is_dir() and child_node["data"]["excluded_info"] is None:
+                if child_item.is_dir():
                     child_node["state"] = {"opened": True}
                     # Preload level 2 children
                     level2_nodes = []
@@ -435,7 +441,7 @@ def api_flatten():
         if token_count > 0: # Or >=0 if you want to show models even for 0 tokens
             for model in MODEL_CONTEXT_INFO:
                 percentage = round((token_count / model["window"]) * 100, 2) if model["window"] > 0 else (100.0 if token_count > 0 else 0.0)
-                model_percentages.append({"name": model["displayName"], "percentage": (0.01 if 0 < percentage < 0.01 else percentage)})
+                model_percentages.append({"name": model["displayName", "percentage": (0.01 if 0 < percentage < 0.01 else percentage)})
         return jsonify({"text": text_content, "token_count": token_count, "model_percentages": model_percentages})
 
     final_resolved_paths_for_structure = sorted(list(resolved_paths_for_structure_set), key=lambda p: str(p).lower())
