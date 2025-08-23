@@ -1,6 +1,3 @@
-# File: app.py
-# treeb/app.py
-
 from flask import Flask, render_template, request, jsonify
 from pathlib import Path
 from typing import Optional, List # Optional for type hints, List might be needed for older 3.9 versions if list[] fails
@@ -434,29 +431,11 @@ def api_flatten():
                     display_f_path_str = f".../{f_path.parent.name}/{f_path.name}" if f_path.parent and f_path.parent.name else f_path.name
 
                 content = f_path.read_text(encoding="utf-8", errors="replace")
-                # Heuristic for language detection based on extension for markdown code block
-                lang = ""
-                ext = f_path.suffix.lower()
-                if ext in [".py", ".pyw"]: lang = "python"
-                elif ext in [".js", ".jsx"]: lang = "javascript"
-                elif ext in [".ts", ".tsx"]: lang = "typescript"
-                elif ext in [".html", ".htm"]: lang = "html"
-                elif ext in [".css"]: lang = "css"
-                elif ext in [".json"]: lang = "json"
-                elif ext in [".java"]: lang = "java"
-                elif ext in [".c", ".h", ".cpp", ".hpp"]: lang = "c" # Or cpp
-                elif ext in [".cs"]: lang = "csharp"
-                elif ext in [".go"]: lang = "go"
-                elif ext in [".rs"]: lang = "rust"
-                elif ext in [".sh", ".bash"]: lang = "bash"
-                elif ext in [".md", ".markdown"]: lang = "markdown"
-                elif ext in [".txt", ".text", ""]: lang = "text" # Default to text if no specific lang
-
-                body_parts.append(f"```{(lang if lang else '')}\n# File: {display_f_path_str}\n{content}\n```\n\n")
+                body_parts.append(f"{display_f_path_str}\n\"\"\"\n{content}\n\"\"\"\n\n")
             except UnicodeDecodeError:
-                body_parts.append(f"```text\n# File: {display_f_path_str or f_path.name}\n[binary file or undecodable content skipped]\n```\n\n")
+                body_parts.append(f"{display_f_path_str}\n\"\"\"\n[binary file or undecodable content skipped]\n\"\"\"\n\n")
             except Exception as e:
-                body_parts.append(f"```text\n# File: {display_f_path_str or f_path.name}\n[Error reading file: {e}]\n```\n\n")
+                body_parts.append(f"{display_f_path_str}\n\"\"\"\n[Error reading file: {e}]\n\"\"\"\n\n")
 
     final_text = header + "".join(body_parts)
     if ENCODING:
