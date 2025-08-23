@@ -1,3 +1,5 @@
+# treeb/app.py
+
 from flask import Flask, render_template, request, jsonify
 from pathlib import Path
 from typing import Optional, List # Optional for type hints, List might be needed for older 3.9 versions if list[] fails
@@ -46,9 +48,37 @@ for p_dir in [PRESET_BASE_DIR, SELECTION_PRESET_BASE_DIR, DEFAULT_SELECTION_PRES
 
 # --- Default Exclusion Data (Master Definition for system_defaults.json) ---
 class DefaultExclusionData:
-    DIRS = [".git", ".venv", "venv", ".env", "env", "node_modules", ".next", "__pycache__", ".pytest_cache", ".mypy_cache", "build", "dist", "target", "out", "site", ".vscode", ".idea"]
-    FILES = [".DS_Store", "Thumbs.db", ".env"] # .env file specifically
-    PATTERNS = ["*.pyc", "*.pyo", "*.swp", "*.swo", "*.swn", "*.log", "*.tmp", "*.temp", "*ignore", "*.lock"]
+    DIRS = [
+        ".git", ".venv", "venv", ".env", "env", "node_modules", ".next", "__pycache__", ".pytest_cache", ".mypy_cache",
+        "build", "dist", "target", "out", "site", ".vscode", ".idea",
+        # Flutter
+        ".dart_tool", "Pods", ".gradle", "DerivedData", ".pub-cache", ".pub", ".generated",
+        # Svelte (4 and 5, similar)
+        ".svelte-kit", "bower_components", ".grunt", ".nuxt", ".vuepress", ".docusaurus", ".serverless", ".vitepress", ".temp"
+    ]
+    FILES = [
+        ".DS_Store", "Thumbs.db", ".env",
+        # Flutter
+        ".flutter-plugins", ".flutter-plugins-dependencies", ".packages", "local.properties", "key.properties",
+        "gradlew", "gradlew.bat", "GeneratedPluginRegistrant.java", "Generated.xcconfig", "app.flx", "app.zip",
+        "ServiceDefinitions.json",
+        # Svelte/Node
+        ".node_repl_history", ".yarn-integrity", ".eslintcache", ".stylelintcache", ".lock-wscript",
+        ".yarn/build-state.yml", ".yarn/install-state.gz"
+    ]
+    PATTERNS = [
+        "*.pyc", "*.pyo", "*.swp", "*.swo", "*.swn", "*.log", "*.tmp", "*.temp", "*.lock",
+        "*.jpg", "*.jpeg", "*.png", "*.gif", "*.bmp", "*.tiff", "*.ico",
+        "*.mp4", "*.mov", "*.avi", "*.mkv", "*.flv", "*.wmv", "*.mpeg", "*.mpg",
+        # Flutter
+        "*.iml", "*.jks", "*.mode1v3", "*.mode2v3", "*.moved-aside", "*.pbxuser", "*.perspectivev3",
+        "*sync*", "*.sconsign.dblite", "*.tags*", "Icon?", "GeneratedPluginRegistrant.*",
+        "vite.config.js.timestamp-*", "vite.config.ts.timestamp-*",
+        # Svelte/Node
+        "npm-debug.log*", "yarn-debug.log*", "yarn-error.log*", "lerna-debug.log*",
+        "report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json", "*.pid", "*.seed", "*.pid.lock", "*.lcov", "*.tsbuildinfo", "*.tgz",
+        ".env.*"
+    ]
 
 # --- Function to Load Initial Active Exclusions ---
 def load_or_create_initial_exclusions() -> dict:
